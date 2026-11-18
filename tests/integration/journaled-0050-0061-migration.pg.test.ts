@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { cp, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -7,6 +10,8 @@ import { rehearseCurrentForecastNeon } from '../../scripts/release/rehearse-curr
 import {
   computeTargetFingerprint,
   formatJournaledRangeFailure,
+  JOURNALED_0050_0061_MANIFEST_PINS,
+  JOURNALED_0050_0061_TARGETS,
   JournaledRangeTargetError,
   runJournaledRangeMigration,
   runJournaledRangeMigrationCli,
@@ -24,6 +29,46 @@ const databases: string[] = [];
 const quiet = { write: () => true };
 let admin: Pool;
 let startedContainer = false;
+let historicalFixtureDirectory: string | undefined;
+
+async function copiedSources() {
+  historicalFixtureDirectory = await mkdtemp(path.join(tmpdir(), 'journaled-0050-0061-'));
+  const copiedMigrations = path.join(historicalFixtureDirectory, 'migrations');
+  const copiedManifests = path.join(historicalFixtureDirectory, 'scripts', 'prod-schema-manifests');
+  await cp(path.join(process.cwd(), 'migrations'), copiedMigrations, { recursive: true });
+  await cp(path.join(process.cwd(), 'scripts', 'prod-schema-manifests'), copiedManifests, {
+    recursive: true,
+  });
+  await cp(
+    path.join(process.cwd(), 'scripts', 'prod-schema-patches'),
+    path.join(historicalFixtureDirectory, 'scripts', 'prod-schema-patches'),
+    { recursive: true }
+  );
+
+  const journalPath = path.join(copiedMigrations, 'meta', '_journal.json');
+  const journal = JSON.parse(await readFile(journalPath, 'utf8'));
+  const lastTarget = JOURNALED_0050_0061_TARGETS.at(-1);
+  const newerEntries = journal.entries.filter(
+    (entry: { idx: number }) => entry.idx > lastTarget.idx
+  );
+  journal.entries = journal.entries.filter((entry: { idx: number }) => entry.idx <= lastTarget.idx);
+  await writeFile(journalPath, JSON.stringify(journal));
+  for (const entry of newerEntries) {
+    await rm(path.join(copiedMigrations, `${entry.tag}.sql`));
+  }
+
+  const lastManifest = JOURNALED_0050_0061_MANIFEST_PINS.at(-1);
+  for (const file of await readdir(copiedManifests)) {
+    if (!file.endsWith('.json')) continue;
+    const manifest = JSON.parse(await readFile(path.join(copiedManifests, file), 'utf8'));
+    if (manifest.order > lastManifest.order) await rm(path.join(copiedManifests, file));
+  }
+}
+
+function fixtureRoot() {
+  if (!historicalFixtureDirectory) throw new Error('Historical 0061 source root is unavailable');
+  return historicalFixtureDirectory;
+}
 
 function baseConnection(): string {
   return process.env.TEST_DATABASE_URL ?? getPostgresConnectionString();
@@ -90,6 +135,7 @@ async function expectedFingerprint(connectionString: string, pool?: Pool) {
 
 async function apply(connectionString: string, stdout = quiet) {
   return runJournaledRangeMigration({
+    rootDir: fixtureRoot(),
     connectionString,
     apply: true,
     expectedTargetFingerprint: await expectedFingerprint(connectionString),
@@ -161,6 +207,7 @@ async function seedQueuedRun(
 
 describe.skipIf(skipIfNoDocker)('journaled 0050-0061 PostgreSQL route', { retry: 0 }, () => {
   beforeAll(async () => {
+    await copiedSources();
     if (!process.env.TEST_DATABASE_URL) {
       await setupTestContainers();
       startedContainer = true;
@@ -176,6 +223,8 @@ describe.skipIf(skipIfNoDocker)('journaled 0050-0061 PostgreSQL route', { retry:
     } finally {
       await admin?.end();
       if (startedContainer) await cleanupTestContainers();
+      if (historicalFixtureDirectory)
+        await rm(historicalFixtureDirectory, { recursive: true, force: true });
     }
   }, 120_000);
 
@@ -185,7 +234,12 @@ describe.skipIf(skipIfNoDocker)('journaled 0050-0061 PostgreSQL route', { retry:
     try {
       const before = await snapshot(pool);
       await expect(
-        runJournaledRangeMigration({ connectionString, apply: false, stdout: quiet })
+        runJournaledRangeMigration({
+          rootDir: fixtureRoot(),
+          connectionString,
+          apply: false,
+          stdout: quiet,
+        })
       ).resolves.toMatchObject({
         preState: { state: 'ready', appliedTargetCount: 0 },
         postState: 'ready',
@@ -268,6 +322,7 @@ describe.skipIf(skipIfNoDocker)('journaled 0050-0061 PostgreSQL route', { retry:
       let error: unknown;
       try {
         await runJournaledRangeMigration({
+          rootDir: fixtureRoot(),
           connectionString,
           apply: true,
           expectedTargetFingerprint: '0'.repeat(64),
@@ -304,6 +359,7 @@ describe.skipIf(skipIfNoDocker)('journaled 0050-0061 PostgreSQL route', { retry:
       let error: unknown;
       try {
         await runJournaledRangeMigration({
+          rootDir: fixtureRoot(),
           connectionString: spoofed.toString(),
           apply: true,
           // The URL authority's fingerprint: what a ?host= override would hide behind.
@@ -322,6 +378,7 @@ describe.skipIf(skipIfNoDocker)('journaled 0050-0061 PostgreSQL route', { retry:
 
       await expect(
         runJournaledRangeMigration({
+          rootDir: fixtureRoot(),
           connectionString: spoofed.toString(),
           apply: true,
           expectedTargetFingerprint: await expectedFingerprint(connectionString, pool),
@@ -394,6 +451,7 @@ describe.skipIf(skipIfNoDocker)('journaled 0050-0061 PostgreSQL route', { retry:
             env,
             stdout: quiet,
             stderr: quiet,
+            rootDir: fixtureRoot(),
           });
           if (exitCode !== 0) throw new Error('journaled runner failed');
         }
@@ -477,6 +535,7 @@ describe.skipIf(skipIfNoDocker)('journaled 0050-0061 PostgreSQL route', { retry:
       let error: unknown;
       try {
         await runJournaledRangeMigration({
+          rootDir: fixtureRoot(),
           connectionString,
           apply: true,
           expectedTargetFingerprint: await expectedFingerprint(connectionString),
@@ -568,6 +627,7 @@ describe.skipIf(skipIfNoDocker)('journaled 0050-0061 PostgreSQL route', { retry:
         let error: unknown;
         try {
           await runJournaledRangeMigration({
+            rootDir: fixtureRoot(),
             connectionString,
             apply: true,
             expectedTargetFingerprint: await expectedFingerprint(connectionString),
