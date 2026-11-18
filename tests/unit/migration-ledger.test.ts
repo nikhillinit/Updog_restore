@@ -71,6 +71,7 @@ const expectedJournaledDriftPatchFiles = [
   '0059_task_update_commands.sql',
   '0060_fund_workflow_commands.sql',
   '0061_durable_create_receipts.sql',
+  '0062_vehicle_onboarding_commands.sql',
 ].sort();
 
 afterEach(() => {

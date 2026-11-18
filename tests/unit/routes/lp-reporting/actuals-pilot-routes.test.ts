@@ -15,6 +15,35 @@ const preview = vi.hoisted(() => ({ run: vi.fn() }));
 const publisher = vi.hoisted(() => ({ run: vi.fn() }));
 const codec = vi.hoisted(() => ({ parse: vi.fn() }));
 const metricsProjector = vi.hoisted(() => ({ project: vi.fn() }));
+const onboarding = vi.hoisted(() => ({ run: vi.fn() }));
+const logs = vi.hoisted(() => {
+  const error = vi.fn();
+  const stub: Record<string, unknown> = {
+    error,
+    warn: () => undefined,
+    info: () => undefined,
+    debug: () => undefined,
+    trace: () => undefined,
+    fatal: () => undefined,
+  };
+  stub['child'] = () => stub;
+  return { error, stub };
+});
+
+vi.mock('../../../../server/lib/logger', () => ({ logger: logs.stub }));
+
+vi.mock('../../../../server/services/lp-reporting/vehicle-onboarding-service', () => {
+  class VehicleOnboardingError extends Error {
+    constructor(
+      readonly statusCode: number,
+      readonly code: string,
+      message: string
+    ) {
+      super(message);
+    }
+  }
+  return { VehicleOnboardingError, onboardMainFundVehicle: onboarding.run };
+});
 
 vi.mock('../../../../server/config/actuals-pilot-env', () => ({
   readActualsPilotFundId: () => state.pilotFundId,
@@ -156,6 +185,129 @@ beforeEach(() => {
   publisher.run.mockReset();
   codec.parse.mockReset();
   metricsProjector.project.mockReset();
+  onboarding.run.mockReset();
+});
+
+describe('main-fund onboarding HTTP boundary', () => {
+  const key = 'c9ce5d2a-a51f-4146-8458-9b8f01d60368';
+  const body = {
+    contractVersion: 'vehicle-onboarding/1.0.0',
+    vehicleSlug: 'main-fund',
+    name: 'Main Fund',
+    committedCapital: '1000000.00',
+    source: { sourceType: 'manual', content: 'Approved USD commitment: 1,000,000.' },
+    sourceLocator: 'Commitment schedule',
+    attestation: 'source-supports-commitment/1.0.0',
+  };
+  const path = '/api/funds/7/imports/actuals/main-fund';
+
+  it.each([201, 200])('preserves canonical response bytes and status %s', async (status) => {
+    const responseBody = '{"commandId":3,"outcome":"created"}';
+    onboarding.run.mockResolvedValue({ status, responseBody });
+    const response = await request(await makeApp(7))
+      .post(path)
+      .set('Idempotency-Key', key)
+      .send(body);
+    expect(response.status).toBe(status);
+    expect(response.text).toBe(responseBody);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(onboarding.run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fundId: 7,
+        actorId: 9,
+        idempotencyKey: key,
+        request: body,
+      })
+    );
+  });
+
+  it('does not register onboarding when the pilot is disabled', async () => {
+    await request(await makeApp(null))
+      .post(path)
+      .set('Idempotency-Key', key)
+      .send(body)
+      .expect(404);
+    expect(onboarding.run).not.toHaveBeenCalled();
+  });
+
+  it('denies a different fund before invoking the command', async () => {
+    await request(await makeApp(7))
+      .post('/api/funds/8/imports/actuals/main-fund')
+      .set('Idempotency-Key', key)
+      .send(body)
+      .expect(404);
+    expect(onboarding.run).not.toHaveBeenCalled();
+  });
+
+  it('rejects missing key and unsupported fields without invoking the command', async () => {
+    const app = await makeApp(7);
+    await request(app).post(path).send(body).expect(400);
+    await request(app)
+      .post(path)
+      .set('Idempotency-Key', key)
+      .send({ ...body, currency: 'EUR' })
+      .expect(400);
+    expect(onboarding.run).not.toHaveBeenCalled();
+  });
+
+  it('maps bounded lock failure to retry-same-command semantics', async () => {
+    onboarding.run.mockRejectedValue(Object.assign(new Error('lock timeout'), { code: '55P03' }));
+    const response = await request(await makeApp(7))
+      .post(path)
+      .set('Idempotency-Key', key)
+      .send(body);
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe('REQUEST_IN_PROGRESS');
+    expect(response.headers['retry-after']).toBe('2');
+  });
+
+  it.each([
+    ['VEHICLE_IDENTITY_CONFLICT', 'The requested main-fund identity is unavailable.'],
+    ['IDEMPOTENCY_KEY_REUSE', 'Idempotency-Key was already used for a different request.'],
+  ])('returns an actionable message for %s', async (code, message) => {
+    const app = await makeApp(7);
+    const { VehicleOnboardingError } =
+      await import('../../../../server/services/lp-reporting/vehicle-onboarding-service');
+    const { IdempotentCommandError } = await import('../../../../server/lib/idempotent-command');
+    onboarding.run.mockRejectedValue(
+      code === 'IDEMPOTENCY_KEY_REUSE'
+        ? new IdempotentCommandError(409, code, message)
+        : new VehicleOnboardingError(409, code, message)
+    );
+    await request(app).post(path).set('Idempotency-Key', key).send(body).expect(409, {
+      code,
+      message,
+    });
+  });
+
+  it.each([
+    [
+      Object.assign(new Error('duplicate key DETAIL: Key (vehicle_slug)=(secret-slug)'), {
+        code: '23505',
+        constraint: 'vehicles_fund_slug_unique',
+      }),
+      { errorName: 'Error', sqlState: '23505', constraint: 'vehicles_fund_slug_unique' },
+    ],
+    [
+      Object.assign(new TypeError('Cannot read secret-slug of undefined'), {
+        code: 'ERR_SECRET_SLUG',
+      }),
+      { errorName: 'TypeError' },
+    ],
+  ])('logs a redacted record before an unclassified 500', async (failure, expected) => {
+    logs.error.mockClear();
+    onboarding.run.mockRejectedValue(failure);
+    const response = await request(await makeApp(7))
+      .post(path)
+      .set('Idempotency-Key', key)
+      .send(body);
+    expect(response.status).toBe(500);
+    expect(response.body.code).toBe('VEHICLE_ONBOARDING_FAILED');
+    expect(logs.error).toHaveBeenCalledTimes(1);
+    const [record] = logs.error.mock.calls[0]!;
+    expect(record).toEqual({ code: 'VEHICLE_ONBOARDING_FAILED', ...expected });
+    expect(JSON.stringify(logs.error.mock.calls)).not.toContain('secret-slug');
+  });
 });
 
 describe('actuals pilot route registration and command boundary', () => {

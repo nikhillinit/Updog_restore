@@ -7,7 +7,10 @@ import type { Request, Response, NextFunction } from 'express';
 import { db, pool as dbPool, runWithDatabaseContext } from '../db.js';
 import { getRequestDatabaseScope } from '../db/request-context.js';
 import { isPublicApiPath } from '../lib/public-api-boundary.js';
-import { isFundWorkflowCommandRoute } from '../lib/database-backed-idempotency-routes.js';
+import {
+  isFundWorkflowCommandRoute,
+  isVehicleOnboardingCommandRoute,
+} from '../lib/database-backed-idempotency-routes.js';
 import { logger } from '../lib/logger.js';
 import type { UserContext } from '../lib/secure-context.js';
 import type { Pool, PoolClient } from 'pg';
@@ -45,6 +48,7 @@ export function withRLSTransaction() {
     const rejectedResponse = new Error('Request returned an error status');
     const disconnected = new Error('Request disconnected');
     const workflow = isFundWorkflowCommandRoute(req.method, req.originalUrl);
+    const onboarding = isVehicleOnboardingCommandRoute(req.method, req.originalUrl);
     const disconnectController = new AbortController();
     let pendingEnd: Parameters<Response['end']> | undefined;
     let rejectResponse: (error: Error) => void = () => {};
@@ -96,7 +100,9 @@ export function withRLSTransaction() {
         },
         workflow
           ? { timeoutMs: 60_000, signal: disconnectController.signal }
-          : { signal: disconnectController.signal }
+          : onboarding
+            ? { timeoutMs: 10_000, signal: disconnectController.signal }
+            : { signal: disconnectController.signal }
       );
       restoreResponse();
       if (!res.destroyed && pendingEnd) originalEnd.apply(res, pendingEnd);
@@ -107,7 +113,11 @@ export function withRLSTransaction() {
         originalEnd.apply(res, pendingEnd);
       } else {
         log.error(
-          workflow ? { code: 'FUND_WORKFLOW_TRANSACTION_FAILED' } : { err: error },
+          workflow
+            ? { code: 'FUND_WORKFLOW_TRANSACTION_FAILED' }
+            : onboarding
+              ? { code: 'VEHICLE_ONBOARDING_TRANSACTION_FAILED' }
+              : { err: error },
           'Request transaction failed'
         );
         res.removeHeader('Content-Length');

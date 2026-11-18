@@ -115,6 +115,7 @@ const LP_REPORTING_ROUTE_POLICY_KEYS = [
   'POST /api/funds/:fundId/imports/actuals/restatements/publish',
   'GET /api/funds/:fundId/financial-facts/latest-reference',
   'GET /api/funds/:fundId/actuals/metrics',
+  'POST /api/funds/:fundId/imports/actuals/main-fund',
 ] as const;
 
 type LpReportingPolicyExpectation = Pick<
@@ -151,6 +152,15 @@ const LP_REPORTING_ADDITIONAL_POLICY_GROUPS: ReadonlyArray<{
       workflowRequirement: 'actuals_pilot_lane_registered_and_explicit_fund_grant_verified',
       exportPolicy: 'preview_only',
       provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['POST /api/funds/:fundId/imports/actuals/main-fund'],
+    expected: {
+      workflowRequirement: 'explicit_admin_fund_grant_source_attestation_and_idempotency_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+      performanceBudgetMs: 10_000,
     },
   },
   {
@@ -648,7 +658,7 @@ describe('route policy coverage', () => {
   });
 
   it('covers every LP-reporting metric-run and import route', () => {
-    expect(LP_REPORTING_ROUTE_POLICY_KEYS).toHaveLength(47);
+    expect(LP_REPORTING_ROUTE_POLICY_KEYS).toHaveLength(48);
 
     const declaredRoutes = [
       ...declaredRoutePolicyKeys('server/routes/lp-reporting/metric-runs.ts'),

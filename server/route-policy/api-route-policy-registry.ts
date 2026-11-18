@@ -724,6 +724,15 @@ const ACTUALS_PILOT_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = (
   [
     {
       method: 'POST',
+      path: '/api/funds/:fundId/imports/actuals/main-fund',
+      workflowRequirement: 'explicit_admin_fund_grant_source_attestation_and_idempotency_verified',
+      exportPolicy: 'not_exportable',
+      performanceBudgetMs: 10_000,
+      notes:
+        'Pilot-only main-fund declaration; atomic source and receipt; no existing vehicle updates.',
+    },
+    {
+      method: 'POST',
       path: '/api/funds/:fundId/imports/actuals/draft-revisions',
       workflowRequirement: 'actuals_draft_if_match_idempotency_and_explicit_fund_grant_verified',
       exportPolicy: 'not_exportable',

@@ -3,6 +3,7 @@ import { and, asc, desc, eq, lte, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
 import { assertOwnedByFund, type FundScopedOwnershipDatabase } from '../lib/fund-scoped-ownership';
 import { replayIdempotentCommandIfPresent, runIdempotentCommand } from '../lib/idempotent-command';
+import { assertArtifactNotVehicleOnboardingOwned } from './financial-observations/vehicle-onboarding-artifact-ownership';
 import {
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4,
   FINANCIAL_FACTS_POLICY_VERSION,
@@ -1905,6 +1906,13 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
     workingValueSelectionIds: lineage.workingValueSelectionIds,
   });
 
+  if (input.openingAccountingStateArtifactId !== undefined) {
+    await assertArtifactNotVehicleOnboardingOwned(
+      database,
+      input.fundId,
+      input.openingAccountingStateArtifactId
+    );
+  }
   const [openingAccountingStateArtifact] =
     input.openingAccountingStateArtifactId === undefined
       ? []

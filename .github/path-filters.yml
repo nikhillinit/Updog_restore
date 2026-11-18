@@ -447,6 +447,8 @@ schema_tests:
   - 'scripts/release/current-forecast-production-action.mjs'
   - 'scripts/release/rehearse-current-forecast-neon.mjs'
   - 'tests/integration/actuals-draft-revisions.pg.test.ts'
+  - 'tests/integration/vehicle-onboarding.pg.test.ts'
+  - 'tests/integration/vehicle-onboarding-storage.pg.test.ts'
   - 'server/services/fund-actuals/fund-company-actuals-facts-service.ts'
   # F_1.12.0 financial-facts terminal-head proof
   - 'tests/integration/financial-facts-terminal-head.pg.test.ts'

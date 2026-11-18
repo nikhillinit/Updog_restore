@@ -30,6 +30,7 @@ import { z } from 'zod';
 
 import { requireAuth, requireFundAccess } from '../../lib/auth/jwt';
 import { requireActualsPilotGrant } from '../../lib/auth/actuals-pilot-grant';
+import { logger } from '../../lib/logger';
 import { firstString } from '../../lib/request-values';
 import {
   ImportCommitRequestSchema,
@@ -68,7 +69,18 @@ import {
   StageImportBatchRequestSchema,
 } from '@shared/contracts/financial-observations';
 import { requireIfMatch, type PreconditionRequest } from '../../lib/http-preconditions';
-import { IdempotentCommandError } from '../../lib/idempotent-command';
+import {
+  IdempotentCommandError,
+  sendIdempotentCommandLockError,
+} from '../../lib/idempotent-command';
+import {
+  VehicleOnboardingKeySchema,
+  VehicleOnboardingRequestSchema,
+} from '@shared/contracts/lp-reporting/vehicle-onboarding.contract';
+import {
+  onboardMainFundVehicle,
+  VehicleOnboardingError,
+} from '../../services/lp-reporting/vehicle-onboarding-service';
 import { stageImportBatch } from '../../services/financial-observations/import-batch-staging-service';
 import {
   bulkResolveCases,
@@ -145,6 +157,10 @@ import {
   unavailableActualMetricsV2,
 } from '../../services/actual-metrics-v2-projector';
 
+const log =
+  typeof logger.child === 'function'
+    ? logger.child({ module: 'routes:lp-reporting:imports' })
+    : logger;
 const router = Router();
 const actualsPilotFundId = readActualsPilotFundId();
 const actualsIdempotencyKeySchema = z
@@ -1350,6 +1366,68 @@ if (actualsPilotFundId !== null) {
         return res.status(200).json(metrics);
       } catch (error) {
         return sendActualsError(req, res, error);
+      }
+    }
+  );
+}
+
+if (actualsPilotFundId !== null) {
+  router.post(
+    '/api/funds/:fundId/imports/actuals/main-fund',
+    setActualsPrivateCache,
+    requireAuth(),
+    requireVerifiedActualsCredential,
+    requireActualsPilotGrant(() => actualsPilotFundId),
+    requireFundAccess,
+    actualsPilotLimiter,
+    requireActualsJson,
+    async (req: Request, res: Response) => {
+      const key = VehicleOnboardingKeySchema.safeParse(requestHeader(req, 'idempotency-key'));
+      if (!key.success) {
+        return res.status(400).json({
+          error: 'Idempotency-Key must be a lowercase UUID.',
+          code: 'INVALID_IDEMPOTENCY_KEY',
+        });
+      }
+      const body = VehicleOnboardingRequestSchema.safeParse(req.body);
+      if (!body.success) {
+        return res.status(400).json({
+          error: 'Main-fund declaration is invalid.',
+          code: 'INVALID_BODY',
+        });
+      }
+      try {
+        const result = await onboardMainFundVehicle({
+          fundId: actualsPilotFundId,
+          actorId: resolveAuthenticatedUserId(req),
+          idempotencyKey: key.data,
+          request: body.data,
+          ...(req.context && { context: req.context }),
+        });
+        return res.status(result.status).type('application/json').send(result.responseBody);
+      } catch (error) {
+        if (sendIdempotentCommandLockError(res, error)) return res;
+        if (error instanceof VehicleOnboardingError) {
+          return res.status(error.statusCode).json({ message: error.message, code: error.code });
+        }
+        if (error instanceof IdempotentCommandError) {
+          return res.status(error.status).json({ message: error.message, code: error.code });
+        }
+        const details: { code: string; errorName: string; sqlState?: string; constraint?: string } =
+          {
+            code: 'VEHICLE_ONBOARDING_FAILED',
+            errorName: error instanceof Error ? error.name : typeof error,
+          };
+        const candidate = error as { code?: unknown; constraint?: unknown } | null;
+        if (typeof candidate?.code === 'string' && /^[0-9A-Z]{5}$/.test(candidate.code)) {
+          details.sqlState = candidate.code;
+        }
+        if (typeof candidate?.constraint === 'string') details.constraint = candidate.constraint;
+        log.error(details, 'Main-fund declaration failed');
+        return res.status(500).json({
+          error: 'Main-fund declaration failed. Retry the same request and key.',
+          code: 'VEHICLE_ONBOARDING_FAILED',
+        });
       }
     }
   );

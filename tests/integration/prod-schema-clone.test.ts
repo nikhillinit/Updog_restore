@@ -211,6 +211,10 @@ const DURABLE_CREATE_RECEIPT_MANIFEST_TABLES = [
   'portfoliocompanies',
   'deal_pipeline_commands',
 ] as const;
+const VEHICLE_ONBOARDING_COMMAND_MANIFEST_TABLES = [
+  'vehicle_onboarding_commands',
+  'internal_capital_envelope_versions',
+] as const;
 const ACTUALS_MANIFEST_TABLES = [
   'actuals_draft_revisions',
   'actuals_restatement_commands',
@@ -255,6 +259,7 @@ const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'task-update-commands',
   'fund-workflow-commands',
   'durable-create-receipts',
+  'vehicle-onboarding-commands',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
@@ -910,6 +915,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...TASK_UPDATE_COMMAND_MANIFEST_TABLES,
         ...FUND_WORKFLOW_COMMAND_MANIFEST_TABLES,
         ...DURABLE_CREATE_RECEIPT_MANIFEST_TABLES,
+        ...VEHICLE_ONBOARDING_COMMAND_MANIFEST_TABLES,
         ...ACTUALS_MANIFEST_TABLES,
         'fund_scenario_variants',
       ])

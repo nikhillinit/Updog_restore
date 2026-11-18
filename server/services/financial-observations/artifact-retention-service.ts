@@ -24,6 +24,12 @@ import { db } from '../../db';
 import { logger } from '../../lib/logger';
 import { jobOutbox, type JobOutbox } from '@shared/schema';
 import type { ReconciliationCaseHistoryEntryV1 } from '../../../shared/contracts/financial-observations/reconciliation.contract';
+import {
+  isVehicleOnboardingArtifact,
+  resolveVehicleOnboardingOwnership,
+  vehicleOnboardingDigestSql,
+  type VehicleOnboardingOwnership,
+} from './vehicle-onboarding-artifact-ownership';
 
 const log = logger.child({ module: 'artifact-retention' });
 const DAY_MS = 86_400_000;
@@ -195,7 +201,10 @@ function toNullableDate(value: unknown): Date | null {
   return value === null || value === undefined ? null : toDate(value);
 }
 
-export function createRetentionSweepPorts(database: RetentionDatabase): RetentionSweepPorts {
+export function createRetentionSweepPorts(
+  database: RetentionDatabase,
+  options?: { vehicleOnboardingOwnership?: VehicleOnboardingOwnership }
+): RetentionSweepPorts {
   return {
     async selectDueBatches(now) {
       const result = await database.execute(sql`
@@ -258,7 +267,15 @@ export function createRetentionSweepPorts(database: RetentionDatabase): Retentio
       // Global lock order: artifact -> batch -> observation -> case (identity is
       // untouched by a purge). Each UPDATE takes the row locks in that order.
       return database.transaction(async (tx) => {
-        if (batch.sourceArtifactId !== null) {
+        if (
+          batch.sourceArtifactId !== null &&
+          !(await isVehicleOnboardingArtifact(
+            tx,
+            batch.fundId,
+            batch.sourceArtifactId,
+            options?.vehicleOnboardingOwnership
+          ))
+        ) {
           await tx.execute(sql`
             UPDATE source_artifacts
             SET payload = NULL, purged_at = ${now}
@@ -336,14 +353,68 @@ export function createRetentionSweepPorts(database: RetentionDatabase): Retentio
   };
 }
 
+/** Purge only bytes whose exclusive declaration ownership and expiry still match. */
+export async function purgeVehicleOnboardingArtifacts(
+  now: Date,
+  database: RetentionDatabase = db,
+  ownership?: VehicleOnboardingOwnership
+): Promise<number> {
+  const resolved = ownership ?? (await resolveVehicleOnboardingOwnership(database));
+  if (resolved === 'absent') return 0;
+  const digest = vehicleOnboardingDigestSql(resolved, sql`artifact.fund_id`, sql`artifact.id`);
+  const result = await database.execute(sql`
+    UPDATE source_artifacts AS artifact
+    SET payload = NULL, purged_at = ${now}
+    WHERE artifact.payload IS NOT NULL AND artifact.purged_at IS NULL
+      AND artifact.purge_after <= ${now}
+      AND (artifact.retention_extended_until IS NULL OR artifact.retention_extended_until <= ${now})
+      AND ${digest} = artifact.payload_sha256
+      AND NOT EXISTS (
+        SELECT 1 FROM import_batches AS batch
+        WHERE batch.fund_id = artifact.fund_id AND batch.source_artifact_id = artifact.id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM source_observations AS observation
+        WHERE observation.fund_id = artifact.fund_id AND observation.source_artifact_id = artifact.id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM actuals_draft_revisions AS revision
+        WHERE revision.fund_id = artifact.fund_id
+          AND (revision.ledger_source_artifact_id = artifact.id OR revision.valuation_source_artifact_id = artifact.id)
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM actuals_restatement_commands AS restatement
+        WHERE restatement.fund_id = artifact.fund_id
+          AND (restatement.ledger_source_artifact_id = artifact.id OR restatement.valuation_source_artifact_id = artifact.id)
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM internal_capital_envelope_versions AS envelope
+        WHERE envelope.fund_id = artifact.fund_id AND envelope.source_artifact_id = artifact.id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM financial_facts_snapshots AS snapshot
+        WHERE snapshot.fund_id = artifact.fund_id
+          AND snapshot.payload -> 'openingAccountingState' ->> 'sourceArtifactId' = artifact.id::text
+      )
+    RETURNING artifact.id
+  `);
+  return toRows(result).length;
+}
+
 /** Convenience entry point: build the DB-backed ports and run a full sweep. */
 export async function runRetentionSweep(
   now: Date,
   database: RetentionDatabase = db
 ): Promise<RetentionSweepSummary> {
-  const summary = await sweepDueBatches(createRetentionSweepPorts(database), now);
+  const ownership = await resolveVehicleOnboardingOwnership(database);
+  const summary = await sweepDueBatches(
+    createRetentionSweepPorts(database, { vehicleOnboardingOwnership: ownership }),
+    now
+  );
   // Keep the existing sweep usable before the additive draft migration lands.
-  const draftTable = toRows(await database.execute(sql`SELECT to_regclass('public.actuals_draft_revisions') AS relation`));
+  const draftTable = toRows(
+    await database.execute(sql`SELECT to_regclass('public.actuals_draft_revisions') AS relation`)
+  );
   if (draftTable[0]?.['relation']) {
     // Caller-selected upload keys alone cannot establish draft ownership.
     await database.execute(sql`
@@ -357,8 +428,14 @@ export async function runRetentionSweep(
             AND (revision.ledger_source_artifact_id = artifact.id
               OR revision.valuation_source_artifact_id = artifact.id)
         )
+        ${
+          ownership === 'absent'
+            ? sql``
+            : sql`AND ${vehicleOnboardingDigestSql(ownership, sql`artifact.fund_id`, sql`artifact.id`)} IS NULL`
+        }
     `);
   }
+  if (ownership !== 'absent') await purgeVehicleOnboardingArtifacts(now, database, ownership);
   return summary;
 }
 

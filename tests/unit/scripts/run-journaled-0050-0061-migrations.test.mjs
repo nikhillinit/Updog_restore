@@ -1,10 +1,10 @@
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import process from 'node:process';
 import { URL } from 'node:url';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DrizzleQueryError } from 'drizzle-orm';
 
 const reconciliation = vi.hoisted(() => ({
@@ -93,12 +93,18 @@ const root = process.cwd();
 let baselineEntries;
 let targetEntries;
 let manifests;
+let historicalSources;
 
 beforeAll(async () => {
-  const loaded = await loadJournaledRangeMigrations({ migrationsDir, manifestDir });
+  historicalSources = await copiedSources();
+  const loaded = await loadJournaledRangeMigrations(historicalSources);
   baselineEntries = loaded.baselineEntries;
   targetEntries = loaded.targetEntries;
   manifests = loaded.manifests;
+});
+
+afterAll(async () => {
+  if (historicalSources) await rm(historicalSources.directory, { recursive: true, force: true });
 });
 
 beforeEach(() => {
@@ -141,10 +147,49 @@ async function copiedSources() {
   const copiedManifests = path.join(directory, 'manifests');
   await cp(migrationsDir, copiedMigrations, { recursive: true });
   await cp(manifestDir, copiedManifests, { recursive: true });
+  // This runner intentionally supports only its pinned historical source tail.
+  // New migrations must remain refused by the live-repository test below.
+  const journalPath = path.join(copiedMigrations, 'meta', '_journal.json');
+  const journal = JSON.parse(await readFile(journalPath, 'utf8'));
+  const lastTarget = JOURNALED_0050_0061_TARGETS.at(-1);
+  const newerEntries = journal.entries.filter((entry) => entry.idx > lastTarget.idx);
+  journal.entries = journal.entries.filter((entry) => entry.idx <= lastTarget.idx);
+  await writeFile(journalPath, JSON.stringify(journal));
+  for (const entry of newerEntries) {
+    await rm(path.join(copiedMigrations, `${entry.tag}.sql`));
+  }
+  const lastManifest = JOURNALED_0050_0061_MANIFEST_PINS.at(-1);
+  for (const file of await readdir(copiedManifests)) {
+    if (!file.endsWith('.json')) continue;
+    const manifest = JSON.parse(await readFile(path.join(copiedManifests, file), 'utf8'));
+    if (manifest.order > lastManifest.order) await rm(path.join(copiedManifests, file));
+  }
   return { directory, migrationsDir: copiedMigrations, manifestDir: copiedManifests };
 }
 
 describe('journaled 0050-0061 source and ledger admission', () => {
+  it('refuses the live repository with migration 0062 before constructing a client', async () => {
+    const journal = JSON.parse(
+      await readFile(path.join(migrationsDir, 'meta', '_journal.json'), 'utf8')
+    );
+    expect(journal.entries.some(({ tag }) => tag === '0062_vehicle_onboarding_commands')).toBe(
+      true
+    );
+    const clientFactory = vi.fn();
+    await expect(
+      runJournaledRangeMigration({
+        connectionString: 'postgres://operator:password@localhost/db',
+        apply: false,
+        migrationsDir,
+        manifestDir,
+        clientFactory,
+      })
+    ).rejects.toThrow('Repository is newer than the 0050-0061 route');
+    expect(clientFactory).not.toHaveBeenCalled();
+    expect(targetEntries.at(-1).tag).toBe('0061_durable_create_receipts');
+    expect(manifests.at(-1).order).toBe(38);
+  });
+
   it.each(['canonical', 'adr074-reconciled'])('classifies every %s prefix', (kind) => {
     for (let count = 0; count <= 12; count += 1) {
       expect(
@@ -220,14 +265,6 @@ describe('journaled 0050-0061 source and ledger admission', () => {
           `Journaled manifest source identity mismatch: ${pin.name}`
         );
       } finally {
-        const original = await readFile(
-          path.resolve(root, manifests.find(({ order }) => order === pin.order).manifestPath)
-        );
-        const target = path.resolve(
-          root,
-          manifests.find(({ order }) => order === pin.order).manifestPath
-        );
-        await writeFile(target, original);
         await rm(sources.directory, { recursive: true, force: true });
       }
     }
@@ -435,6 +472,7 @@ describe('journaled 0050-0061 pure contracts', () => {
       end: vi.fn(),
     };
     await runJournaledRangeMigration({
+      ...historicalSources,
       connectionString: 'postgres://operator:password@localhost/db',
       apply: false,
       stdout: { write: (value) => output.push(value) },
@@ -456,6 +494,7 @@ describe('journaled 0050-0061 pure contracts', () => {
       const client = { host, port: 6543, query: vi.fn(), connect: vi.fn(), end: vi.fn() };
       await expect(
         runJournaledRangeMigration({
+          ...historicalSources,
           connectionString:
             'postgres://operator:password@prod.example.invalid/db?host=staging.example.invalid&port=6543',
           apply: true,

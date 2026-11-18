@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearPendingCreateCommands,
@@ -53,6 +54,70 @@ describe('useIdempotencyKey', () => {
 
     expect(result.current.restored).toBe(true);
     expect(result.current.keyFor('digest-a')).toBe('kept-key');
+  });
+
+  it('preserves restored command identity through StrictMode effect replay and scope changes', () => {
+    const onboardingScope = { ...scope(), operation: 'vehicle_onboarding' as const };
+    const entry = 'pending-create:v1:1:vehicle_onboarding';
+    sessionStorage.setItem(
+      entry,
+      JSON.stringify({ actorId: '7', key: 'kept-key', fingerprint: 'digest-a', createdAt: 1 })
+    );
+    const { result, rerender } = renderHook(
+      ({ fundId }) => useIdempotencyKey({ ...onboardingScope, fundId }),
+      { initialProps: { fundId: 1 }, wrapper: StrictMode }
+    );
+
+    expect(result.current.restored).toBe(true);
+    expect(result.current.keyFor('digest-a', onboardingScope, false)).toBe('kept-key');
+    expect(() => result.current.keyFor('digest-b', onboardingScope, false)).toThrow();
+
+    rerender({ fundId: 2 });
+    expect(result.current.restored).toBe(false);
+    act(() => {
+      result.current.keyFor('fresh-digest');
+    });
+    rerender({ fundId: 1 });
+    expect(result.current.restored).toBe(true);
+    expect(result.current.keyFor('digest-a', onboardingScope, false)).toBe('kept-key');
+
+    act(() => result.current.reset());
+    expect(result.current.restored).toBe(false);
+    expect(sessionStorage.getItem(entry)).toBeNull();
+    act(() => {
+      result.current.keyFor('fresh-digest');
+    });
+    rerender({ fundId: 2 });
+    rerender({ fundId: 1 });
+    expect(result.current.restored).toBe(false);
+  });
+
+  it('can preserve a restored onboarding key until the exact declaration is reselected', () => {
+    const onboardingScope = { ...scope(), operation: 'vehicle_onboarding' as const };
+    const entry = 'pending-create:v1:1:vehicle_onboarding';
+    sessionStorage.setItem(
+      entry,
+      JSON.stringify({ actorId: '7', key: 'kept-key', fingerprint: 'digest-a', createdAt: 1 })
+    );
+    const { result } = renderHook(() => useIdempotencyKey(onboardingScope));
+
+    expect(() => result.current.keyFor('digest-b', onboardingScope, false)).toThrow(
+      'Restore the exact pending declaration and source'
+    );
+    expect(JSON.parse(sessionStorage.getItem(entry) ?? 'null')).toMatchObject({
+      key: 'kept-key',
+      fingerprint: 'digest-a',
+    });
+    expect(result.current.keyFor('digest-a', onboardingScope, false)).toBe('kept-key');
+    expect(result.current.restored).toBe(true);
+  });
+
+  it('can preserve an unscoped pending key without changing the default replacement policy', () => {
+    const { result } = renderHook(() => useIdempotencyKey());
+    const key = result.current.keyFor('digest-a', undefined, false);
+    expect(() => result.current.keyFor('digest-b', undefined, false)).toThrow();
+    expect(result.current.keyFor('digest-a', undefined, false)).toBe(key);
+    expect(result.current.keyFor('digest-b')).not.toBe(key);
   });
 
   it('removes another actor entry and a corrupt entry on restore', () => {
@@ -138,10 +203,12 @@ describe('useIdempotencyKey', () => {
     expect(result.current.keyFor('digest-a')).not.toBe(key);
 
     sessionStorage.setItem('pending-create:v1:2:company_create', '{}');
+    sessionStorage.setItem('pending-create:v1:1:vehicle_onboarding', '{}');
     sessionStorage.setItem('unrelated', 'keep');
     clearPendingCreateCommands();
     expect(sessionStorage.getItem(ENTRY)).toBeNull();
     expect(sessionStorage.getItem('pending-create:v1:2:company_create')).toBeNull();
+    expect(sessionStorage.getItem('pending-create:v1:1:vehicle_onboarding')).toBeNull();
     expect(sessionStorage.getItem('unrelated')).toBe('keep');
   });
 

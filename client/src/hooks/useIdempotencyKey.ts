@@ -7,11 +7,12 @@ interface IdempotencyKeyState {
   key: string;
   fingerprint: string;
   actorId: string | null;
+  restoredFromStorage: boolean;
 }
 
 export type IdempotencyKeyScope = {
   fundId: number | null | undefined;
-  operation: 'deal_create' | 'deal_import' | 'company_create';
+  operation: 'deal_create' | 'deal_import' | 'company_create' | 'vehicle_onboarding';
   actorId: string | null | undefined;
 };
 
@@ -79,8 +80,10 @@ export interface IdempotencyKeyHandle {
    * recovery engage; a changed payload mints a fresh key (a new logical
    * operation, never a spurious request-hash 409). Pass the scope captured
    * before any await: the hook's scope can change while a payload hashes.
+   * Set replacePending=false when an unresolved command must be restored
+   * exactly instead of being replaced by a different payload.
    */
-  keyFor: (payload: unknown, scope?: IdempotencyKeyScope) => string;
+  keyFor: (payload: unknown, scope?: IdempotencyKeyScope, replacePending?: boolean) => string;
   /** Call on settlement, with the command's scope, so the next operation mints a fresh key. */
   reset: (scope?: IdempotencyKeyScope) => void;
   /** True when a valid scoped command was restored from sessionStorage. */
@@ -143,14 +146,23 @@ function pendingFor(
   actorId: string
 ): { entry: IdempotencyKeyState | null; fromStorage: boolean } {
   const memory = commands.get(key);
-  if (memory?.actorId === actorId) return { entry: memory, fromStorage: false };
+  if (memory?.actorId === actorId) {
+    return { entry: memory, fromStorage: memory.restoredFromStorage };
+  }
 
   const stored = readPendingCreate(key, actorId);
   if (!stored) {
     commands.delete(key);
     return { entry: null, fromStorage: false };
   }
-  const entry = { key: stored.key, fingerprint: stored.fingerprint, actorId };
+  // Preserve origin when effect replay or a fund switch reads this entry
+  // again from memory. It remains restored until reset or replacement.
+  const entry = {
+    key: stored.key,
+    fingerprint: stored.fingerprint,
+    actorId,
+    restoredFromStorage: true,
+  };
   commands.set(key, entry);
   return { entry, fromStorage: true };
 }
@@ -179,7 +191,7 @@ export function useIdempotencyKey(scope?: IdempotencyKeyScope): IdempotencyKeyHa
   const handle = useRef<IdempotencyKeyHandle | null>(null);
   if (handle.current === null) {
     handle.current = {
-      keyFor: (payload, boundScope) => {
+      keyFor: (payload, boundScope, replacePending = true) => {
         const serializedPayload = JSON.stringify(payload) ?? '';
         const currentScope = boundScope ?? scopeRef.current;
         const key = scopeKey(currentScope);
@@ -189,8 +201,11 @@ export function useIdempotencyKey(scope?: IdempotencyKeyScope): IdempotencyKeyHa
         if (key && currentScope?.actorId) {
           const fingerprint = typeof payload === 'string' ? payload : serializedPayload;
           const { entry, fromStorage } = pendingFor(commands.current, key, currentScope.actorId);
-          if (fromStorage && ownScope) setRestored(true);
+          if (fromStorage && ownScope && !restoredRef.current) setRestored(true);
           if (entry?.fingerprint === fingerprint) return entry.key;
+          if (entry && !replacePending) {
+            throw new Error('Restore the exact pending declaration and source before retrying.');
+          }
 
           const next = {
             actorId: currentScope.actorId,
@@ -198,7 +213,7 @@ export function useIdempotencyKey(scope?: IdempotencyKeyScope): IdempotencyKeyHa
             fingerprint,
             createdAt: Date.now(),
           } satisfies PendingCreate;
-          commands.current.set(key, next);
+          commands.current.set(key, { ...next, restoredFromStorage: false });
           writePendingCreate(key, next);
           if (ownScope) setRestored(false);
           return next.key;
@@ -206,7 +221,15 @@ export function useIdempotencyKey(scope?: IdempotencyKeyScope): IdempotencyKeyHa
 
         const unscoped = commands.current.get(null);
         if (unscoped?.fingerprint === serializedPayload) return unscoped.key;
-        const next = { key: crypto.randomUUID(), fingerprint: serializedPayload, actorId: null };
+        if (unscoped && !replacePending) {
+          throw new Error('Restore the exact pending declaration and source before retrying.');
+        }
+        const next = {
+          key: crypto.randomUUID(),
+          fingerprint: serializedPayload,
+          actorId: null,
+          restoredFromStorage: false,
+        };
         commands.current.set(null, next);
         return next.key;
       },

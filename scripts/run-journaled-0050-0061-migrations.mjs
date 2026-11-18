@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath, URL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
@@ -49,8 +49,6 @@ import {
 } from './run-current-forecast-journaled-migrations.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const migrationsDir = path.join(repoRoot, 'migrations');
-const manifestDir = path.join(repoRoot, 'scripts/prod-schema-manifests');
 const { Client } = pg;
 const quietOutput = { write: () => true };
 
@@ -244,10 +242,14 @@ function manifestPinError(name) {
   return new JournaledRangeMigrationError(`Journaled manifest source identity mismatch: ${name}`);
 }
 
-export async function loadJournaledRangeMigrations({ migrationsDir, manifestDir }) {
+export async function loadJournaledRangeMigrations({
+  migrationsDir,
+  manifestDir,
+  rootDir = repoRoot,
+}) {
   const journalPath = path.join(migrationsDir, 'meta', '_journal.json');
   const journal = JSON.parse(await readFile(journalPath, 'utf8'));
-  const manifests = await loadManifests(manifestDir);
+  const manifests = await loadManifests(manifestDir, rootDir);
   assertRepositoryTail({ journalEntries: journal.entries, manifests });
 
   const targetEntries = [];
@@ -273,7 +275,7 @@ export async function loadJournaledRangeMigrations({ migrationsDir, manifestDir 
     }
     let hash;
     try {
-      hash = await hashFile(path.resolve(repoRoot, manifest.manifestPath));
+      hash = await hashFile(path.resolve(rootDir, manifest.manifestPath));
     } catch {
       throw manifestPinError(pin.name);
     }
@@ -511,6 +513,9 @@ function assertAllManifestsClean({ audits, manifests }) {
  *   stdout?: { write: (chunk: string) => unknown };
  *   clientFactory?: (options: { connectionString: string }) => import('pg').Client;
  *   progress?: { stage: 'before-connect' | 'before-ledger' | 'after-ledger' };
+ *   rootDir?: string;
+ *   migrationsDir?: string;
+ *   manifestDir?: string;
  * }} options
  */
 export async function runJournaledRangeMigration({
@@ -520,8 +525,9 @@ export async function runJournaledRangeMigration({
   stdout = process.stdout,
   clientFactory = ({ connectionString: target }) => new Client({ connectionString: target }),
   progress = { stage: 'before-connect' },
-  migrationsDir: migrationDirectory = migrationsDir,
-  manifestDir: manifestDirectory = manifestDir,
+  rootDir: sourceRoot = repoRoot,
+  migrationsDir: migrationDirectory = path.join(sourceRoot, 'migrations'),
+  manifestDir: manifestDirectory = path.join(sourceRoot, 'scripts', 'prod-schema-manifests'),
 }) {
   const {
     targetEntries,
@@ -530,6 +536,7 @@ export async function runJournaledRangeMigration({
   } = await loadJournaledRangeMigrations({
     migrationsDir: migrationDirectory,
     manifestDir: manifestDirectory,
+    rootDir: sourceRoot,
   });
   assertDirectDatabaseUrl(connectionString);
 
@@ -594,6 +601,7 @@ export async function runJournaledRangeMigration({
       manifests: targetManifests,
       apply: false,
       stdout: quietOutput,
+      rootDir: sourceRoot,
     });
     const preSentinelCatalog = await readCurrentForecastSentinelCatalog(client);
     await assertJournaledRangeCatalog({
@@ -676,6 +684,7 @@ export async function runJournaledRangeMigration({
       manifests: allManifests,
       apply: false,
       stdout: quietOutput,
+      rootDir: sourceRoot,
     });
     assertAllManifestsClean({ audits: postAudit.audits, manifests: allManifests });
     const postSentinelCatalog = await readCurrentForecastSentinelCatalog(client);
@@ -707,6 +716,7 @@ export async function runJournaledRangeMigrationCli({
   env = process.env,
   stdout = process.stdout,
   stderr = process.stderr,
+  rootDir: sourceRoot,
 } = {}) {
   const stage = { stage: 'before-connect' };
   try {
@@ -717,6 +727,7 @@ export async function runJournaledRangeMigrationCli({
       expectedTargetFingerprint: apply ? env.EXPECTED_TARGET_FINGERPRINT : undefined,
       stdout,
       progress: stage,
+      rootDir: sourceRoot,
     });
     if (env.JOURNALED_0050_0061_MIGRATION_RESULT_PATH) {
       await writeFile(

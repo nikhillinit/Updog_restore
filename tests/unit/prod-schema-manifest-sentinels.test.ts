@@ -190,7 +190,39 @@ describe('prod-schema manifest sentinels', () => {
       '36-task-update-commands.json',
       '37-fund-workflow-commands.json',
       '38-durable-create-receipts.json',
+      '39-vehicle-onboarding-commands.json',
     ]);
+  });
+
+  it('registers vehicle onboarding catalog metadata without allowing missing-table creation', async () => {
+    const entry = manifests.find(
+      (candidate) => candidate.file === '39-vehicle-onboarding-commands.json'
+    );
+    expect(entry).toBeDefined();
+    const manifest = entry!.manifest;
+    expect(manifest).toMatchObject({
+      name: 'vehicle-onboarding-commands',
+      order: 39,
+      missingTablePolicy: 'existing_table_required',
+      sqlFiles: ['migrations/0062_vehicle_onboarding_commands.sql'],
+      allowedCreateTables: [],
+    });
+    expect(manifest.expectedTables?.map((table) => table.name)).toEqual([
+      'vehicle_onboarding_commands',
+      'internal_capital_envelope_versions',
+    ]);
+    expect(manifest.functionDefinitions?.map((pin) => pin.name)).toEqual([
+      'internal_economics_forbid_update',
+      'vehicle_onboarding_refuse_envelope_source',
+      'vehicle_onboarding_artifact_digest',
+    ]);
+    const digestPin = manifest.functionDefinitions?.find(
+      (pin) => pin.name === 'vehicle_onboarding_artifact_digest'
+    )?.expectedDefinition.exactDefinition;
+    expect(digestPin).toContain(' STABLE SECURITY DEFINER\n');
+    expect(digestPin).toContain(" SET search_path TO 'pg_catalog'\n SET row_security TO 'off'\n");
+    const files = await readManifestSql(manifest);
+    expect(() => validateManifestSql(manifest, files)).not.toThrow();
   });
 
   it('pins manifest 35 to an atomic six-mode CHECK replacement on existing variants', async () => {
