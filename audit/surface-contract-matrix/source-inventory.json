@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:5d63b2dd95963dfd96f75fc7b90c57b901e0795934bf123bcb0c629400d73e64",
+  "snapshot_id": "snapshot:07ee7b9c0249b7f02f657a40b96a9bbae551e0f82e81f06af30152d4638d04fa",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -507,7 +507,7 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
-    "audit/surface-contract-matrix/boot-proofs.json": "04939d332878fa66b0f2e729d3aec8e8103660b06b33b90ad28a51f0003356dc",
+    "audit/surface-contract-matrix/boot-proofs.json": "111b99d026e98ab41eef8c7cebcf26783aed2bbf9f2d13d681188147142fd549",
     "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9b0fbdc28bced02e5a500e573c0a661ca19efae4f8767aba2d40bf2f239c19ba",
@@ -603,7 +603,7 @@
     "server/routes/lp-documents.ts": "67b0275d24e869fe3fdaefd5c29a25b9de0a23863b6cb5345ea29583cda9f9d5",
     "server/routes/lp-health.ts": "a8080198e669ee718c8a213cb2ceea23585ab481e0d111f3b6832ed9fa2e6c59",
     "server/routes/lp-notifications.ts": "1ccd1408da04315f94d19959b6a81255157be2c38bae922f88ecba0058fcb70f",
-    "server/routes/lp-reporting/imports.ts": "72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+    "server/routes/lp-reporting/imports.ts": "65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
     "server/routes/lp-reporting/metric-runs.ts": "c63c104b5aa4e214965455fe06a4b4d234f01444728698abdc780cd08be8da00",
     "server/routes/metrics-endpoint.ts": "e6c2def4c989af5a022de716738f98954f3941020eae90d0d2f737f9e0475f22",
     "server/routes/metrics-rum-ingress.ts": "1f9df0ff741c450fc3bde3d184403a2faa3e4bc62cd16a84bba86d1a39643979",
@@ -11627,7 +11627,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:5d63b2dd95963dfd96f75fc7b90c57b901e0795934bf123bcb0c629400d73e64"
+      "snapshot:07ee7b9c0249b7f02f657a40b96a9bbae551e0f82e81f06af30152d4638d04fa"
     ]
   },
   "kg_counts": {

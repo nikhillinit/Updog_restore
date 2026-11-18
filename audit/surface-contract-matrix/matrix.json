@@ -2,8 +2,8 @@
   "schema_version": "1.1.0",
   "phase": "closed",
   "provenance": {
-    "git_head": "875811596b15e27cf4a157cb03ef41f5c26ab757",
-    "snapshot_id": "snapshot:5d63b2dd95963dfd96f75fc7b90c57b901e0795934bf123bcb0c629400d73e64"
+    "git_head": "d43d4e89ccc226e8d75ed3d29812042901a33571",
+    "snapshot_id": "snapshot:07ee7b9c0249b7f02f657a40b96a9bbae551e0f82e81f06af30152d4638d04fa"
   },
   "rows": [
     {
@@ -11438,7 +11438,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/actuals/metrics",
@@ -11501,7 +11501,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/actuals/metrics",
@@ -11528,14 +11528,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596. Exposure auth evidence now also lists the route-local requireAuth() inside actualsCommon (imports.ts:942-948), which was present before and after; effective authentication is unchanged.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "15c398b40637e53662cf596885c09499a7dea96858217cf97445f73b224532f3",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -15223,7 +15223,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
@@ -15286,7 +15286,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/financial-facts/latest-reference",
@@ -15313,14 +15313,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "d994d44436d81826d5a09e4e1d2a1a96efdcaf587ba2f4475de9a52ab180524a",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -15540,7 +15540,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -15603,7 +15603,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -15631,14 +15631,14 @@
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "50c5b943a99b202251110ee99d45ecd29f89c44e7804832869d605da141d318d",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -15858,7 +15858,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
@@ -15921,7 +15921,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision",
@@ -15949,14 +15949,14 @@
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "f8a15ca41b45af55f9ad5738d97e778a650ff3202fb56bbff3cb1cacb31f063b",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -16176,7 +16176,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
@@ -16239,7 +16239,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/restatements/history",
@@ -16290,14 +16290,14 @@
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "29c71a7c00b0a9bfccd38fbfa2f7bcd2adce056da931a4a76d0ba9920b503b9e",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -16517,7 +16517,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
@@ -16580,7 +16580,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets",
@@ -16631,14 +16631,14 @@
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "591eab3df937215d336a848ca405b2501a9c338501be4d7fc53971b45dff0b59",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -16870,7 +16870,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/batches/:batchId",
@@ -16933,7 +16933,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/imports/batches/:batchId",
@@ -16960,14 +16960,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "0370901049f4cceb96eb5cf63ed04bb3382afa717f4c08d614a981c86fb55e07",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -26722,7 +26722,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/reconciliation/cases",
@@ -26785,7 +26785,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:GET:/api/funds/:fundId/reconciliation/cases",
@@ -26812,14 +26812,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "214c2f2603aaa9b63b711d10a0ee5e8854b8e0ff9042d3b42000d66d3b71a9d7",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -73413,7 +73413,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -73476,7 +73476,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions",
@@ -73527,14 +73527,14 @@
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "93775c1c244ca83b33ad77d14a44b6198f0ea8ffdb778dda9b85eb1b2a430347",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -73754,7 +73754,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
@@ -73817,7 +73817,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/dry-run",
@@ -73844,14 +73844,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "f33c7166404ff090880359455ecbf6d537d8573e719056379eeb3def69e55204",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -74092,7 +74092,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
@@ -74155,7 +74155,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/main-fund",
@@ -74183,14 +74183,14 @@
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=New pilot main-fund declaration route (server/routes/lp-reporting/imports.ts:1374-1434, mounted only when the actuals pilot fund is configured). Guards: setActualsPrivateCache, requireAuth(), requireVerifiedActualsCredential, requireActualsPilotGrant, requireFundAccess, actualsPilotLimiter, requireActualsJson; lowercase-UUID Idempotency-Key; strict VehicleOnboardingRequestSchema. onboardMainFundVehicle commits source evidence, insert-only vehicle and durable receipt atomically (migration 0062); same-key exact replay, conflicting replay refused; no fund-model, publication, queue or existing-vehicle mutation. Fields carried from the 2026-11-04 Codex independent review of the same route at 56d98f0a5. F_1.24.1 review fixes (93391c751, f5585d45b, 875811596; Codex code review approved round 2 on 2026-11-16) keep the route path, method, middleware chain, auth, request contract and response bytes unchanged; the handler only adds a redacted failure log (error name, SQLSTATE, constraint) before the existing 500. Server changes behind the handler are internal: artifact ownership is read through the 0062 SECURITY DEFINER digest function (or a direct table read where the function is absent and row security cannot filter the read), and the onboarding insert closure is split into helpers. The client panel separately releases its recovery key on a definitive refusal and offers an explicit discard. Classification still matches sibling actuals rows on origin/main (admin, writes, soft, staged-only, lp-reporting, in-contract). At 875811596: npm run check 0 errors, 16 unit files 478/478, PostgreSQL 38/38 (RUN_DOCKER_VEHICLE_ONBOARDING=1).",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=The two typed refusal handlers expose their existing safe messages in the client-visible message field. Route registration, live pilot grant, fund access, status and error codes, idempotency, lock retries, successful receipt bytes and redacted unclassified failure behavior are preserved. The persistence suggestion now reflects the existing writes classification.",
       "contract_fingerprint": "bf44407e8099bfc77c19771d872e1612a24ab6842496b37a7c22f5876ea14b83",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -74202,17 +74202,12 @@
         "auth_roles": [],
         "unresolved_auth": false,
         "undecided_auth_roles": [],
-        "persistence": "unknown",
+        "persistence": "writes",
         "persistence_evidence": {
-          "writes": [],
-          "side_effecting_calls": [],
-          "pure_calculation": [],
-          "hard_delete": [],
-          "soft_archive": [],
-          "ambiguous_calls": [],
-          "handlers": [
-            "server/routes/lp-reporting/imports.ts"
-          ]
+          "method": "POST",
+          "policy_lifecycle": "durable_crud",
+          "policy_workflow_requirement": "explicit_admin_fund_grant_source_attestation_and_idempotency_verified",
+          "basis": "mutation HTTP method"
         },
         "destructive": "unknown",
         "environment": "unknown"
@@ -74415,7 +74410,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/publish",
@@ -74478,7 +74473,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/publish",
@@ -74505,14 +74500,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "00792d37252403e255ca3f5589c119f076d0270c2cb5adccb074b62b6c41327f",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -74732,7 +74727,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
@@ -74795,7 +74790,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run",
@@ -74846,14 +74841,14 @@
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "d6182a27d1b10c255a96d8deb6d26d34a2d40f197681acb112fd7eae80b28d5b",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -75073,7 +75068,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -75136,7 +75131,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish",
@@ -75187,14 +75182,14 @@
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "6b49b01c60cbd8b3d3a01a576279d738a11a324966ab83c212d428c392ec4808",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -75426,7 +75421,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/artifacts",
@@ -75489,7 +75484,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/artifacts",
@@ -75516,14 +75511,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "b37a30a4bddc54cfde9745484f50f66f3fcd84efb0232df36bdd514a177276bd",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -75755,7 +75750,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/batches",
@@ -75818,7 +75813,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/batches",
@@ -75845,14 +75840,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "8fb59061e2433a34b76141abbe79b68a2a7858a420639aefd5eb82a56eb7f6ae",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -76084,7 +76079,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -76147,7 +76142,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
@@ -76174,14 +76169,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "236f33bf9e01a479005b5bd116fa9a7200f47b4309e5640059890f7d0588b981",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -76413,7 +76408,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/ledger/commit",
@@ -76476,7 +76471,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/ledger/commit",
@@ -76503,14 +76498,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "84219ef01423a74a019cdf76665ea500bf3232e89c5f9b8271453ead1f978909",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -76742,7 +76737,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/ledger/dry-run",
@@ -76805,7 +76800,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/ledger/dry-run",
@@ -76832,14 +76827,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "3f40d3653ee009a00a7c815576278cd382f9bc04f9106a17f6af971f6da8ede9",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -77071,7 +77066,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/mapping-profiles",
@@ -77134,7 +77129,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/mapping-profiles",
@@ -77161,14 +77156,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "aa4a4adca517465cd1b02b573e7ad4bec73f9a0c7e738bf833de4884a3de8d21",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -77400,7 +77395,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/valuation-marks/commit",
@@ -77463,7 +77458,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/valuation-marks/commit",
@@ -77490,14 +77485,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "29b3a73990db29b5219554e7185ac5018fa668ce4219e33e0ed51c6f9752de1d",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -77729,7 +77724,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/valuation-marks/dry-run",
@@ -77792,7 +77787,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/imports/valuation-marks/dry-run",
@@ -77819,14 +77814,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "cbe18374dba50f757b258d4d808fbc470c77e229673d79020d88a5ce8534da24",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -87794,7 +87789,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/reconciliation/cases/:caseId/resolve",
@@ -87857,7 +87852,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/reconciliation/cases/:caseId/resolve",
@@ -87884,14 +87879,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "9460b2ba5359d19764463eeaa43442452b82b5c1818c1ad8ed08e934eb810f02",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -88123,7 +88118,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/reconciliation/cases/bulk-resolve",
@@ -88186,7 +88181,7 @@
             "layer": "unit",
             "assertion_evidence": "tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts:172",
             "assertion_confirmed": false,
-            "test_file_sha256": "e24a05651a4cb20e55b666b5fe415a2f8c3ac46ab6cfb9854ad183423f2a7830"
+            "test_file_sha256": "b0a43f86c6aaab33233f9262bbce7a0ad8351458511ba0e70fea4567f66655f6"
           },
           {
             "row": "api:POST:/api/funds/:fundId/reconciliation/cases/bulk-resolve",
@@ -88213,14 +88208,14 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Reseed delta at 875811596 against origin/main 782bd1373: semantic fields equal the approved main row and are retained. server/routes/lp-reporting/imports.ts changed only by 12 added import lines, a 4-line module logger declaration and the appended main-fund route; this route's middleware and handler are unchanged and its evidence lines shift +16. Test assertion lines in tests/unit/routes/lp-reporting/actuals-pilot-routes.test.ts shift +29 from an added logger mock and added tests; the suite passes 22/22 at 875811596.",
+      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
       "contract_fingerprint": "906532bf92016c53930723fef27976c80cedece0d9f8f137fa4fa1016b83be4f",
       "approved_source_hashes": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/lp-reporting/imports.ts=72a126571d146ad51dccebe0bd3102d5fa1cf97d0c80152f97a5c8bcd59c0a3e",
+        "server/routes/lp-reporting/imports.ts=65f1983d6d687eef09b6aae34b73d4ac9e95d35b2905500b36eb3453957fbabd",
         "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
         "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
       ],
@@ -118691,7 +118686,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:fd09dc43769e45d15f7ec4424864b3eee2a9a65432cefe7518d4a593704cffa6",
+      "snapshot_id": "snapshot:07ee7b9c0249b7f02f657a40b96a9bbae551e0f82e81f06af30152d4638d04fa",
       "counts": {
         "APIEndpoint": 416,
         "ClientRoute": 44,

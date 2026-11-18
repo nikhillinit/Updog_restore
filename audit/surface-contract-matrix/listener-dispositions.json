@@ -48,7 +48,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;verdict=Dockerfile.railway and the Railway worker manifests are unchanged by this branch; seed-matrix forces this legacy listener to proposed on every reseed. Retain the non-product-tooling disposition approved on origin/main (fingerprint ff6ee8a58d3a2f91c493ea7ce4540e429006ee4b3b13b172cb34bba9f9c0f7e4 unchanged). No build, listener boot or provider deployment verified."
+    "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Dockerfile.railway and the active Railway worker manifests are unchanged. The seeder resets the legacy listener disposition to proposed. Its unchanged fingerprint supports retaining the existing non-product-tooling classification. This review covers the source classification."
   },
   {
     "candidate_path": "Dockerfile.simple",
