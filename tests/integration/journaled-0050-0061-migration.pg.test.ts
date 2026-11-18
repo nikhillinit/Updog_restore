@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { cp, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { Pool } from 'pg';
+import { Client, Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { RECONCILE_LOCK_ID, readDatabaseIdentity } from '../../scripts/reconcile-prod-schema.mjs';
@@ -16,6 +16,10 @@ import {
   runJournaledRangeMigration,
   runJournaledRangeMigrationCli,
 } from '../../scripts/run-journaled-0050-0061-migrations.mjs';
+import {
+  runJournaled0062Migration,
+  runJournaled0062MigrationCli,
+} from '../../scripts/run-journaled-0062-migration.mjs';
 import {
   cleanupTestContainers,
   getPostgresConnectionString,
@@ -649,4 +653,166 @@ describe.skipIf(skipIfNoDocker)('journaled 0050-0061 PostgreSQL route', { retry:
     },
     180_000
   );
+
+  describe('journaled 0062 successor', () => {
+    it('admits an exact ADR-074 ledger, applies once, and refuses ledgered RLS drift', async () => {
+      const { connectionString, pool } = await buildProductionShapedDatabase();
+      try {
+        await apply(connectionString);
+        const expectedTargetFingerprint = await expectedFingerprint(connectionString, pool);
+        const beforeMutation = vi.fn(async () => {});
+        const options = {
+          connectionString,
+          expectedTargetFingerprint,
+          beforeMutation,
+          stdout: quiet,
+        };
+        const before = await snapshot(pool);
+
+        const resultPath = path.join(fixtureRoot(), '0062-readback.json');
+        await expect(
+          runJournaled0062MigrationCli({
+            argv: [],
+            env: {
+              DATABASE_URL: connectionString,
+              EXPECTED_TARGET_FINGERPRINT: expectedTargetFingerprint,
+              JOURNALED_0062_MIGRATION_RESULT_PATH: resultPath,
+            },
+            stdout: quiet,
+          })
+        ).resolves.toBe(0);
+        expect(JSON.parse(await readFile(resultPath, 'utf8'))).toEqual({
+          preState: 'ready',
+          postState: 'ready',
+          applied: false,
+          migrationRange: ['0062_vehicle_onboarding_commands'],
+        });
+        await expect(
+          runJournaled0062Migration({
+            ...options,
+            apply: true,
+            expectedTargetFingerprint: 'a'.repeat(64),
+          })
+        ).rejects.toThrow('Target fingerprint missing or mismatched');
+        expect(beforeMutation).not.toHaveBeenCalled();
+        expect(await snapshot(pool)).toEqual(before);
+
+        await expect(
+          runJournaled0062Migration({
+            ...options,
+            apply: true,
+            beforeMutation: async () => {
+              throw new Error('revalidation refused');
+            },
+          })
+        ).rejects.toThrow('revalidation refused');
+        expect(await snapshot(pool)).toEqual(before);
+
+        await expect(runJournaled0062Migration({ ...options, apply: true })).resolves.toEqual({
+          preState: 'ready',
+          postState: 'complete',
+          applied: true,
+          migrationRange: ['0062_vehicle_onboarding_commands'],
+        });
+        expect(beforeMutation).toHaveBeenCalledTimes(1);
+        const after = await snapshot(pool);
+        expect(after.ledger.slice(0, -1)).toEqual(before.ledger);
+        expect(after.ledger).toHaveLength(before.ledger.length + 1);
+
+        await expect(runJournaled0062Migration({ ...options, apply: true })).resolves.toMatchObject(
+          {
+            preState: 'complete',
+            postState: 'complete',
+            applied: false,
+          }
+        );
+        expect(beforeMutation).toHaveBeenCalledTimes(1);
+        expect(await snapshot(pool)).toEqual(after);
+
+        const terminal = after.ledger.at(-1);
+        await pool.query('DELETE FROM public.drizzle_migrations WHERE created_at = $1', [
+          terminal.created_at,
+        ]);
+        const unledgered = await snapshot(pool);
+        await expect(runJournaled0062Migration({ ...options, apply: true })).rejects.toThrow(
+          'requires pristine absence'
+        );
+        expect(await snapshot(pool)).toEqual(unledgered);
+        await pool.query(
+          'INSERT INTO public.drizzle_migrations (hash, created_at) VALUES ($1, $2)',
+          [terminal.hash, terminal.created_at]
+        );
+
+        await pool.query(
+          'ALTER TABLE public.vehicle_onboarding_commands DISABLE ROW LEVEL SECURITY'
+        );
+        await expect(runJournaled0062Migration(options)).rejects.toThrow(
+          'row security configuration mismatch'
+        );
+      } finally {
+        await pool.end();
+      }
+    }, 180_000);
+
+    it('refuses missing predecessors and unledgered 0062 residue and rolls back a failed apply', async () => {
+      const { connectionString, pool } = await buildProductionShapedDatabase();
+      try {
+        const expectedTargetFingerprint = await expectedFingerprint(connectionString, pool);
+        const beforeMutation = vi.fn(async () => {});
+        const options = {
+          connectionString,
+          expectedTargetFingerprint,
+          beforeMutation,
+          stdout: quiet,
+        };
+        await expect(runJournaled0062Migration({ ...options, apply: true })).rejects.toThrow(
+          'requires exact ADR-074 reconciled history through 0061'
+        );
+        await apply(connectionString);
+
+        await pool.query('CREATE SEQUENCE public.vehicle_onboarding_commands_id_seq');
+        const residue = await snapshot(pool);
+        await expect(runJournaled0062Migration({ ...options, apply: true })).rejects.toThrow(
+          'requires pristine absence'
+        );
+        expect(beforeMutation).not.toHaveBeenCalled();
+        expect(await snapshot(pool)).toEqual(residue);
+        await pool.query('DROP SEQUENCE public.vehicle_onboarding_commands_id_seq');
+        const before = await snapshot(pool);
+
+        await expect(
+          runJournaled0062Migration({
+            ...options,
+            apply: true,
+            clientFactory: (config: { connectionString: string }) => {
+              const client = new Client(config);
+              const query = client.query.bind(client);
+              vi.spyOn(client, 'query').mockImplementation(function (
+                this: Client,
+                ...args: unknown[]
+              ) {
+                if (
+                  typeof args[0] === 'string' &&
+                  args[0].startsWith('INSERT INTO public.drizzle_migrations')
+                ) {
+                  throw new Error('synthetic ledger failure after DDL');
+                }
+                return Reflect.apply(query, this, args);
+              } as typeof client.query);
+              return client;
+            },
+          })
+        ).rejects.toThrow('synthetic ledger failure after DDL');
+        expect(beforeMutation).toHaveBeenCalledTimes(1);
+        expect(await snapshot(pool)).toEqual(before);
+        await expect(runJournaled0062Migration(options)).resolves.toMatchObject({
+          preState: 'ready',
+          postState: 'ready',
+          applied: false,
+        });
+      } finally {
+        await pool.end();
+      }
+    }, 180_000);
+  });
 });

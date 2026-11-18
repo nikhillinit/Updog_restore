@@ -22,6 +22,7 @@ import {
   prepare0053G3ReleaseGateHardeningCapability,
   prepareG3Catchup0050To0053Capability,
 } from '../../../scripts/reconcile-prod-schema.mjs';
+import { JOURNALED_RANGE_MIGRATION_RANGE } from '../../../shared/contracts/schema-reconcile-receipt-v1.contract';
 
 describe('actuals synthetic attestation witness', () => {
   const witnessEnv = {
@@ -489,6 +490,126 @@ describe('prod-schema-reconcile workflow', () => {
     }
   });
 
+  it('verifies the exact 0062 archive and rejects legacy or contradictory evidence', async () => {
+    const workflow = YAML.parse(
+      await readFile('.github/workflows/prod-schema-reconcile.yml', 'utf8')
+    );
+    const step = workflow.jobs.reconcile.steps.find(
+      (candidate) => candidate.id === 'historical_receipt'
+    );
+    const heredoc = step?.run.match(/<<'VALIDATE'\n([\s\S]*?)\nVALIDATE(?:\n|$)/)?.[1];
+    expect(heredoc).toBeTruthy();
+    const script = ts.transpileModule(heredoc, {
+      compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
+    }).outputText;
+    const revision = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 5000 });
+    expect(revision.status, revision.stderr).toBe(0);
+    const sourceSha = revision.stdout.trim();
+
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'schema-0062-verifier-'));
+    try {
+      const extracted = path.join(directory, 'extracted');
+      await mkdir(extracted);
+      const receiptPath = path.join(extracted, 'schema-reconcile-receipt.json');
+      const artifactPath = path.join(directory, 'artifact.json');
+      const output = path.join(directory, 'output');
+      const identity = {
+        repository: 'press-on/updog',
+        workflowPath: '.github/workflows/prod-schema-reconcile.yml',
+        runId: '1234',
+        runAttempt: 1,
+        sourceSha,
+        buildTimeMs: 1,
+        result: 'applied_and_clean',
+      };
+      const result = {
+        preState: 'ready',
+        postState: 'complete',
+        applied: true,
+        migrationRange: ['0062_vehicle_onboarding_commands'],
+      };
+      const mode = 'apply-journaled-0062';
+      const resultPath = path.join(extracted, 'journaled-0062-migration-result.json');
+      const vectorPath = path.join(extracted, 'lock-time-apply-vector.json');
+      const run = () =>
+        spawnSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-'], {
+          input: script,
+          env: {
+            PATH: process.env.PATH,
+            TZ: 'UTC',
+            RECEIPT_PATH: receiptPath,
+            ARTIFACT_METADATA_PATH: artifactPath,
+            GITHUB_OUTPUT: output,
+            REPO: identity.repository,
+            SCHEMA_APPLY_RUN_ID: identity.runId,
+            SCHEMA_PRECURSOR_SHA: sourceSha,
+          },
+          encoding: 'utf8',
+          timeout: 5000,
+          maxBuffer: 256 * 1024,
+        });
+      const writeArtifact = (applyMode) =>
+        writeFile(
+          artifactPath,
+          JSON.stringify({
+            name: `prod-schema-reconcile-${identity.runId}-1-${applyMode}-${sourceSha}`,
+          })
+        );
+
+      await Promise.all([
+        writeFile(receiptPath, JSON.stringify({ ...identity, ...result, mode })),
+        writeArtifact(mode),
+        writeFile(resultPath, JSON.stringify(result)),
+        writeFile(vectorPath, JSON.stringify(result)),
+        ...['apply.txt', 'pre-apply-audit.txt', 'post-apply-audit.txt'].map((name) =>
+          writeFile(path.join(extracted, name), '')
+        ),
+      ]);
+      const accepted = run();
+      expect(accepted.status, accepted.stderr).toBe(0);
+      expect(await readFile(output, 'utf8')).toBe(`mode=${mode}\n`);
+
+      await writeFile(
+        vectorPath,
+        JSON.stringify({ ...result, preState: 'complete', applied: false })
+      );
+      const mismatch = run();
+      expect(mismatch.status, mismatch.stderr).toBe(1);
+      expect(mismatch.stderr).toContain('ERR_ASSERTION');
+
+      const legacyMode = 'apply-journaled-0050-0061';
+      const legacyResult = {
+        preState: {
+          state: 'ready',
+          appliedTargetCount: 11,
+          lastAppliedTag: '0060_fund_workflow_commands',
+        },
+        postState: 'complete',
+        applied: true,
+        baselineKind: 'adr074-reconciled',
+        migrationRange: JOURNALED_RANGE_MIGRATION_RANGE,
+        backfillEligibleBefore: null,
+        backfillEligibleAfter: null,
+      };
+      await Promise.all([
+        writeFile(receiptPath, JSON.stringify({ ...identity, ...legacyResult, mode: legacyMode })),
+        writeArtifact(legacyMode),
+        rm(resultPath),
+        writeFile(
+          path.join(extracted, 'journaled-0050-0061-migration-result.json'),
+          JSON.stringify(legacyResult)
+        ),
+        writeFile(vectorPath, JSON.stringify(legacyResult)),
+      ]);
+      const legacy = run();
+      expect(legacy.status, legacy.stderr).toBe(1);
+      expect(legacy.stderr).toContain('requires the exact 0062 apply receipt');
+      expect(await readFile(output, 'utf8')).toBe(`mode=${mode}\n`);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it('binds each historical receipt mode to its exact extracted archive inventory', async () => {
     const workflow = YAML.parse(
       await readFile('.github/workflows/prod-schema-reconcile.yml', 'utf8')
@@ -522,6 +643,7 @@ describe('prod-schema-reconcile workflow', () => {
       apply: base,
       'apply-current-forecast-0050-0055': [...base, 'current-forecast-migration-result.json'],
       'apply-journaled-0050-0061': [...base, 'journaled-0050-0061-migration-result.json'],
+      'apply-journaled-0062': [...base, 'journaled-0062-migration-result.json'],
       'apply-actuals-draft-0056': [
         ...base,
         'actuals-draft-before.json',

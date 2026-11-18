@@ -238,6 +238,28 @@ describe('production governance documentation routing', () => {
     expect(flatGuide).toContain('never from workflow output');
   });
 
+  it('limits the proposed ADR-115 successor to the landed 0062 route and keeps recovery required', async () => {
+    const policy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const guide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+    const decisions = flattenWhitespace(await readRepositoryFile('DECISIONS.md'));
+
+    expect(decisions).toContain('## ADR-115: Forward Journaled Schema Apply for Migration 0062');
+    expect(decisions).toContain(
+      'Requires explicit owner ratification and protected-main source admission.'
+    );
+    const successor = policy
+      .split('**Journaled schema successor for migration 0062 (ADR-115).**')[1]
+      ?.split('The owner-run route')[0];
+    expect(successor).toContain('migration freeze solely for the forward apply and release path');
+    expect(successor).toContain('The existing production schema recovery floor applies in full.');
+    expect(successor).toContain('complete ADR-074 and 0050-0061 predecessor ledger and catalog');
+    expect(successor).toContain('`apply-journaled-0062`');
+    expect(successor).toContain('`journaled-0062`');
+    expect(guide).toContain('the restore reference must be at most 30 minutes old');
+    expect(guide).toContain('under the reconcile lock before DDL');
+    expect(guide).toContain('the attempt-1 full release passes post-promotion smoke');
+  });
+
   it('admits owner-run production user provisioning with its gates and procedure', async () => {
     const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
     const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));

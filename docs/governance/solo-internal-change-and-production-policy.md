@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-09-27
+last_updated: 2026-11-18
 ---
 
 # Solo Internal Change and Production Policy
@@ -249,6 +249,46 @@ reference is revalidated immediately before apply. The ADR-103 accepted risk
 replaces, for this route, the managed backup/PITR, isolated-restore freshness,
 custody-role, and preview/restore-isolation evidence floor below. Every other
 floor applies unchanged.
+
+**Journaled schema successor for migration 0062 (ADR-115).**
+
+This amendment takes effect only after explicit owner ratification of this scope
+and admission of the matching policy, ADR, and executable route to protected
+`main` through required current-head CI. It supersedes the ADR-103 migration
+freeze solely for the forward apply and release path for the already landed
+`0062_vehicle_onboarding_commands` at journal index 63 and its manifest 39. It
+does not lift the freeze for later migrations or manifests, ratify the order of
+the earlier source merge, establish ADR-103 release completion, or change the
+earlier route's tail guard, evidence, or recovery exception.
+
+The only successor entrypoints are `prod-schema-reconcile.yml` mode
+`apply-journaled-0062` for schema apply and
+`current-forecast-neon-rehearsal.yml` mode `journaled-0062` for isolated
+rehearsal. The owner separately dispatches each mode on exact current protected
+`main`. The production route is bounded to the pinned 0062 SQL and manifest 39
+with a complete ADR-074 and 0050-0061 predecessor ledger and catalog. It may
+execute 0062 once when that migration is wholly absent, or record a zero-write
+result when its ledger and catalog already match exactly. Earlier migrations,
+partial or unknown states, later tails, and unverified sources or targets are
+outside the admitted scope.
+
+The existing production schema recovery floor applies in full. Require managed
+backup/PITR, a fresh successful isolated restore, named custody, and
+preview/restore isolation. Before apply, require a successful attempt-1 isolated
+rehearsal at the exact current SHA and independent verification of its immutable
+artifact. Bind independently reviewed and signed recovery evidence to that same
+candidate, the exact production target fingerprint, and the intended apply run.
+Before that run may proceed, require approval through the protected
+`production-schema` environment and verification against a separately
+provisioned reviewer public key. Keep the signing key under independent reviewer
+custody. Under the reconcile lock, revalidate live protected source, exact
+provider target, and the short-lived restore reference immediately before DDL.
+Any unavailable, stale, or conflicting proof blocks the action before mutation.
+An ADR-103-style owner confirmation alone does not satisfy these checks.
+
+Admission grants source authority only. Neither rehearsal, apply receipt, nor
+audit supplies release or pilot-activation authority. Full release and its
+closeout keep their separate owner and verification gates.
 
 The owner-run route `scripts/provision-prod-users.ts --apply` is admitted for
 production user provisioning (ADR-105). The owner runs it locally, never from

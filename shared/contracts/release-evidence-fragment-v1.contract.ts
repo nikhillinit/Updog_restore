@@ -8,6 +8,7 @@ import {
   RELEASE_CANARY_HTTP_WORKFLOW_RESERVED_RESIDUE,
   RELEASE_CANARY_HTTP_WORKFLOW_RESERVATION_IDENTITY,
 } from './release-canary-residue-characterization-v2.contract';
+import { Journaled0062MigrationRangeSchema } from './schema-reconcile-receipt-v1.contract';
 import { sha256CanonicalJson } from '../lib/canonical-json';
 
 export const RELEASE_EVIDENCE_FRAGMENT_KINDS = [
@@ -201,11 +202,12 @@ export const BaselineFragmentPayloadSchema = z
     }
   });
 
-const SchemaMigrationSchema = z.enum(['0053', '0050-0055', '0050-0061']);
+const SchemaMigrationSchema = z.enum(['0053', '0050-0055', '0050-0061', '0062']);
 const SchemaApplyModeSchema = z.enum([
   'apply',
   'apply-current-forecast-0050-0055',
   'apply-journaled-0050-0061',
+  'apply-journaled-0062',
 ]);
 const CurrentForecastMigrationRangeSchema = z.tuple([
   z.literal('0050_g3_portfolio_and_calculation_schema'),
@@ -246,13 +248,18 @@ const SCHEMA_MIGRATION_BINDINGS: Readonly<
     modes: ['apply-current-forecast-0050-0055'],
   },
   '0050-0061': { range: JournaledMigrationRangeSchema, modes: ['apply-journaled-0050-0061'] },
+  '0062': { range: Journaled0062MigrationRangeSchema, modes: ['apply-journaled-0062'] },
 };
 
 export const SchemaFragmentPayloadSchema = z
   .object({
     migration: SchemaMigrationSchema,
     migrationRange: z
-      .union([CurrentForecastMigrationRangeSchema, JournaledMigrationRangeSchema])
+      .union([
+        CurrentForecastMigrationRangeSchema,
+        JournaledMigrationRangeSchema,
+        Journaled0062MigrationRangeSchema,
+      ])
       .optional(),
     precursorSha: SourceShaSchema,
     apply: z

@@ -357,16 +357,18 @@ describe('release-evidence-fragment-v1 contract', { retry: 0 }, () => {
       absent: undefined,
       six: CURRENT_FORECAST_RANGE,
       twelve: JOURNALED_RANGE,
+      onboarding: ['0062_vehicle_onboarding_commands'],
     };
     const modes = [
       undefined,
       'apply',
       'apply-current-forecast-0050-0055',
       'apply-journaled-0050-0061',
+      'apply-journaled-0062',
     ] as const;
     const accepted: string[] = [];
     let combinations = 0;
-    for (const migration of ['0053', '0050-0055', '0050-0061']) {
+    for (const migration of ['0053', '0050-0055', '0050-0061', '0062']) {
       for (const [rangeName, range] of Object.entries(ranges)) {
         for (const mode of modes) {
           combinations += 1;
@@ -387,13 +389,14 @@ describe('release-evidence-fragment-v1 contract', { retry: 0 }, () => {
         }
       }
     }
-    expect(combinations).toBe(36);
+    expect(combinations).toBe(80);
     expect(accepted.sort()).toEqual(
       [
         '0053|absent|undefined',
         '0053|absent|apply',
         '0050-0055|six|apply-current-forecast-0050-0055',
         '0050-0061|twelve|apply-journaled-0050-0061',
+        '0062|onboarding|apply-journaled-0062',
       ].sort()
     );
   });

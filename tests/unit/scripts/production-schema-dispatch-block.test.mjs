@@ -121,7 +121,7 @@ describe('production schema dispatch block', () => {
       runInNewContext(guard, { raw: { mode: 'apply-actuals-restatement-0057' } })
     ).toThrow('0057 historical receipt reuse is not admitted');
     expect(() =>
-      runInNewContext(guard, { raw: { mode: 'apply-actuals-draft-0056' } })
+      runInNewContext(guard, { raw: { mode: 'apply-actuals-draft-0056' }, existsSync: () => false })
     ).not.toThrow();
   });
 
@@ -216,6 +216,7 @@ describe('production schema dispatch block', () => {
       'apply-catchup-0050-0053',
       'apply-current-forecast-0050-0055',
       'apply-journaled-0050-0061',
+      'apply-journaled-0062',
       'apply-actuals-draft-0056',
       'apply-actuals-restatement-0057',
     ]);

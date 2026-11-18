@@ -300,6 +300,56 @@ export type SchemaReconcileJournaledRangeReceiptV1 = z.infer<
   typeof SchemaReconcileJournaledRangeReceiptV1Schema
 >;
 
+export const Journaled0062MigrationRangeSchema = z.tuple([
+  z.literal('0062_vehicle_onboarding_commands'),
+]);
+
+const Journaled0062MigrationResultObjectSchema = z
+  .object({
+    preState: z.enum(['ready', 'complete']),
+    postState: z.enum(['ready', 'complete']),
+    applied: z.boolean(),
+    migrationRange: Journaled0062MigrationRangeSchema,
+  })
+  .strict();
+
+function validateJournaled0062MigrationResult(
+  result: z.infer<typeof Journaled0062MigrationResultObjectSchema>,
+  ctx: z.RefinementCtx
+) {
+  const wasComplete = result.preState === 'complete';
+  if (
+    (wasComplete && result.applied) ||
+    result.postState !== (wasComplete || result.applied ? 'complete' : 'ready')
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['applied'],
+      message: '0062 apply and replay flags must agree with before/after ledger states',
+    });
+  }
+}
+
+export const Journaled0062MigrationResultV1Schema =
+  Journaled0062MigrationResultObjectSchema.superRefine(validateJournaled0062MigrationResult);
+
+export const SchemaReconcileJournaled0062ReceiptV1Schema =
+  Journaled0062MigrationResultObjectSchema.extend({
+    repository: GitHubRepositorySchema,
+    workflowPath: z.literal('.github/workflows/prod-schema-reconcile.yml'),
+    runId: PositiveDecimalIdSchema,
+    runAttempt: z.literal(1),
+    mode: z.literal('apply-journaled-0062'),
+    sourceSha: SourceShaSchema,
+    postState: z.literal('complete'),
+    buildTimeMs: z.number().int().min(0).max(900_000),
+    result: z.literal('applied_and_clean'),
+  }).superRefine(validateJournaled0062MigrationResult);
+
+export type SchemaReconcileJournaled0062ReceiptV1 = z.infer<
+  typeof SchemaReconcileJournaled0062ReceiptV1Schema
+>;
+
 const ActualsDraftMigrationResultObjectSchema = z
   .object({
     migration: z
