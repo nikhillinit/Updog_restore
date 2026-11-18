@@ -665,6 +665,11 @@ async function selectActualsFiles(page: Page, ledgerCsv = actualsFixture.ledgerC
     mimeType: 'text/csv',
     buffer: Buffer.from(ledgerCsv),
   });
+  await expect(
+    page.getByText(`Selected ledger: ${actualsFixture.publishRequest.ledger.fileName}`, {
+      exact: true,
+    })
+  ).toBeVisible();
   await page.getByLabel('Valuation CSV (optional)', { exact: true }).setInputFiles({
     name: actualsFixture.publishRequest.valuation.fileName,
     mimeType: 'text/csv',
