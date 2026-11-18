@@ -1016,11 +1016,19 @@ test.describe('Actuals publication smoke', () => {
     );
     await page.goto('/lp-reporting/imports', { waitUntil: 'domcontentloaded' });
     await selectActualsFiles(page, enteredCsv);
+    const historyResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'GET' &&
+        new URL(response.url()).pathname === '/api/funds/1/imports/actuals/draft-revisions'
+    );
     await page.getByText('Draft versions and corrections', { exact: true }).click();
+    expect((await historyResponse).ok()).toBe(true);
     await page.getByLabel('Draft data qualification').selectOption('synthetic');
     await page.getByLabel('Draft source note').fill('Synthetic browser fixture; no F1 actuals.');
     await page.getByLabel('Reason for this version').fill('Initial incomplete upload.');
-    await page.getByRole('button', { name: 'Save draft revision', exact: true }).click();
+    const saveDraft = page.getByRole('button', { name: 'Save draft revision', exact: true });
+    await expect(saveDraft).toBeEnabled();
+    await saveDraft.click();
     await expect(page.getByText('Saved draft version 1.', { exact: true })).toBeVisible();
     expect(drafts[0]!.body.asOfDate).toBeNull();
     expect(publishCommands).toHaveLength(0);
