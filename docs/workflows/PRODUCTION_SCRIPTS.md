@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-10-10
+last_updated: 2026-11-18
 ---
 
 # Canonical Production-Action Procedure
@@ -392,6 +392,81 @@ mutation. A lock not granted within 10 minutes (the apply's
   0061: handle as `complete 12/12`. The fresh dispatch re-validates the catalog
   before it emits a receipt.
 - Anything else: an incident.
+
+## Forward journaled schema apply for migration 0062 (ADR-115)
+
+This procedure is proposed until owner ratification and source admission under
+the governing policy. The already merged 0062 migration and manifest 39 exceed
+the old route's tail guard. The proposed forward path addresses only those
+landed bytes after source admission. The ADR-103 apply receipt remains evidence
+for its exact 0050-0061 source. ADR-103 full release closeout remains a separate
+outcome, and the freeze stays in place for additional migrations and manifests.
+
+The generic CLI in `scripts/run-journaled-0062-migration.mjs` is read-only. The
+production workflow uses the guarded
+[`journaled-0062-admission.mjs`](../../scripts/release/journaled-0062-admission.mjs)
+entrypoint. Use the named workflow for production apply.
+
+### Owner sequence after source admission
+
+1. Refresh protected `main` and confirm the admitted route, passing exact-head
+   checks, unchanged 0062 SQL and manifest 39, and no newer tail. Verify the
+   `production-schema` environment has a required reviewer who can hold the
+   exact run pending approval. If that protection is missing, stop and scope its
+   configuration as a separate governed owner action. Keep actuals pilot
+   activation on its existing separate route.
+2. Separately dispatch `current-forecast-neon-rehearsal.yml` mode
+   `journaled-0062` on that SHA. Match the configured
+   `SCHEMA_0062_REHEARSAL_PROJECT_ID`, `SCHEMA_0062_REHEARSAL_PARENT_BRANCH_ID`,
+   and `SCHEMA_0062_REHEARSAL_DATABASE_NAME`. Use a rehearsal project distinct
+   from the production project and select `0061_durable_create_receipts` as
+   `expected_parent_migration_tail`. Require attempt 1 success from that exact
+   predecessor, proof of the 0062 transition, and the exact immutable rehearsal
+   artifact and its digest. The apply gate requires the rehearsal to have
+   finished within 72 hours. Verify isolation and the authorized rehearsal
+   branch's cleanup outcome. This proves the rehearsal target's transition only.
+3. Obtain recovery proof under the governing policy. Verify managed backup and
+   PITR, a successful isolated restore within 72 hours, named custody roles, and
+   isolation from preview and production side effects. Verify the protected
+   project, branch, direct endpoint, database, and role against the intended
+   production target. Use the existing fingerprint recipe for
+   `PRODUCTION_SCHEMA_TARGET_FINGERPRINT`. Keep production provider references
+   and credentials private. An independent reviewer checks the findings and
+   evidence digests and retains custody of the Ed25519 signing key. Provision
+   the separately verified public key in `SCHEMA_0062_RECOVERY_PUBLIC_KEY`
+   through the governed environment configuration path.
+4. Establish a quiet window and bounded recovery plan. If prerequisites are
+   ready, the owner separately dispatches `prod-schema-reconcile.yml` mode
+   `apply-journaled-0062` from exact current `main` and obtains the waiting run
+   ID. Before the environment approver releases attempt 1, the independent
+   reviewer signs the admission for the exact repository, candidate, run,
+   production target fingerprint, rehearsal artifact, recovery evidence, and
+   current production-parented restore reference. Supply the signed envelope
+   through the protected `SCHEMA_0062_ADMISSION` secret. Both the admission
+   review and the restore reference must be at most 30 minutes old when checked.
+   The workflow verifies the signature and rehearsal archive, and checks live
+   protected source, provider target, and restore reference again under the
+   reconcile lock before DDL. Withhold approval when the gate, current provider
+   evidence, or reviewed binding is absent or stale.
+5. Verify the locked ledger and catalog readback. An exact complete 0062 state,
+   all 39 manifests clean, and a valid attempt-1 receipt establish the schema
+   result. Keep the run ID, attempt, artifact ID, archive digest, receipt file
+   digest, and precursor SHA for release audit input. A verified complete state
+   without a receipt may only use a fresh, separately authorized dispatch after
+   reconciling the prior outcome and revalidating all prerequisites. Treat
+   partial, unclassified, or ambiguous state as an incident. Stop and reconcile
+   under the shared advisory lock before choosing a forward fix or separately
+   authorized recovery. A failed post-commit audit cannot undo the transaction.
+   GitHub reruns are refused.
+6. Prepare the governed release candidate and exact pre-merge baseline as
+   applicable, including current Railway credential and dependency evidence,
+   canary caps and TTL, and pilot-off readback. Follow the existing production
+   release sequence with the 0062 receipt, current policy evidence, fresh
+   operator probes, and separate owner dispatches and approvals. Close the
+   freeze only after the attempt-1 full release passes post-promotion smoke and
+   finalizes the evidence manifest, and the canonical host and provider readback
+   match the intended release SHA. A worker-only result, schema apply, baseline
+   capture, or Release Proof alone cannot close it.
 
 ## Production user provisioning
 

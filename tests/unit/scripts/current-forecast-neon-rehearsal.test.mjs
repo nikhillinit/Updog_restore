@@ -192,7 +192,7 @@ function run(overrides = {}) {
 }
 
 describe('Current Forecast Neon rehearsal', { retry: 0 }, () => {
-  it('keeps the workflow manual, protected, first-attempt-only, and artifact-free', async () => {
+  it('keeps the workflow manual, protected, first-attempt-only, with artifacts restricted to 0062', async () => {
     const workflow = await readFile(
       '.github/workflows/current-forecast-neon-rehearsal.yml',
       'utf8'
@@ -202,7 +202,9 @@ describe('Current Forecast Neon rehearsal', { retry: 0 }, () => {
     expect(workflow).toContain('environment: production-schema');
     expect(workflow).toContain('git fetch origin refs/heads/main');
     expect(workflow).not.toContain('pull_request:');
-    expect(workflow).not.toContain('upload-artifact');
+    expect(workflow).toMatch(
+      /name: Upload exact 0062 rehearsal evidence\s+if: inputs\.migration_mode == 'journaled-0062'\s+uses: actions\/upload-artifact/
+    );
   });
 
   it.each([
@@ -869,5 +871,78 @@ describe('journaled 0050-0061 rehearsal', { retry: 0 }, () => {
     );
     expect(workflow).toContain('journaled-0050-0061,');
     expect(workflow).toContain('run: node scripts/release/rehearse-current-forecast-neon.mjs');
+  });
+});
+
+describe('journaled 0062 rehearsal', () => {
+  const predecessor = '0061_durable_create_receipts';
+  const tag = '0062_vehicle_onboarding_commands';
+  const migrationResult = {
+    preState: 'ready',
+    postState: 'complete',
+    applied: true,
+    migrationRange: [tag],
+  };
+  const successorInput = {
+    ...input,
+    mode: 'journaled-0062',
+    expectedParentMigrationTail: predecessor,
+  };
+
+  it('uses the pinned successor runner on the isolated child and requires complete readback', async () => {
+    const successorRunner = vi
+      .fn()
+      .mockResolvedValueOnce(migrationResult)
+      .mockResolvedValueOnce({ ...migrationResult, preState: 'complete', applied: false });
+    const commandRunner = vi.fn();
+    const result = await run({
+      input: successorInput,
+      successorRunner,
+      commandRunner,
+      tailReader: vi.fn().mockResolvedValueOnce(predecessor).mockResolvedValueOnce(tag),
+    });
+    expect(successorRunner.mock.calls).toEqual([
+      [
+        {
+          connectionString: 'postgres://app_owner:child-secret@ep-child.us.neon.tech/updog',
+          apply: true,
+          expectedTargetFingerprint: computeTargetFingerprint({
+            directHost: 'ep-child.us.neon.tech',
+            port: 5432,
+            database: 'updog',
+            user: 'app_owner',
+          }),
+        },
+      ],
+      [{ connectionString: 'postgres://app_owner:child-secret@ep-child.us.neon.tech/updog' }],
+    ]);
+    expect(commandRunner).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      migrationMode: 'journaled-0062',
+      migrationResult,
+      afterMigrationTail: tag,
+    });
+  });
+
+  it('rejects non-0061 tails before provider calls and refuses an unchanged readback', async () => {
+    const fetchImpl = vi.fn();
+    await expect(
+      run({
+        input: { ...successorInput, expectedParentMigrationTail: tag },
+        fetchImpl,
+      })
+    ).rejects.toThrow('expectedParentMigrationTail is invalid');
+    expect(fetchImpl).not.toHaveBeenCalled();
+    const successorRunner = vi
+      .fn()
+      .mockResolvedValueOnce(migrationResult)
+      .mockResolvedValueOnce({ ...migrationResult, postState: 'ready', applied: false });
+    await expect(
+      run({
+        input: successorInput,
+        successorRunner,
+        tailReader: vi.fn().mockResolvedValueOnce(predecessor),
+      })
+    ).rejects.toThrow('Isolated 0062 apply or ledger readback refused');
   });
 });

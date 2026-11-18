@@ -13852,3 +13852,70 @@ production credential rotation stays in force.
   which may still accept the old password because a Neon reset is branch-scoped
   (ADR-109 Step 3, UNDETERMINED). Each disposition needs separate owner
   authorization.
+
+## ADR-115: Forward Journaled Schema Apply for Migration 0062
+
+**Date:** 2026-11-18
+
+**Status:** Proposed. Requires explicit owner ratification and protected-main
+source admission. No current production action is authorized.
+
+### Context
+
+ADR-103's 0050-0061 rehearsal and production schema apply succeeded on their
+exact source (runs [36632649327][adr115-legacy-rehearsal] and
+[36642928665][adr115-legacy-apply], attempt 1, `7ee0210fa`). This historical
+apply is separate from the full production release. The release closeout and
+freeze lift are unverified. A workers-only release cannot close them.
+
+[#1708][adr115-onboarding-merge] placed migration 0062 and manifest 39 on
+protected `main` at `6e60264acbdffbd020fa1f54bcd36f16594d64b2` before the
+successor route was admitted. The old route correctly refuses this source before
+connecting. A clean release audit still requires one `SKIP` per manifest,
+including 39. The historical apply receipt cannot establish 0062 ledger or
+catalog state.
+
+### Decision proposed for ratification
+
+- Supersede ADR-103's freeze only for the forward path for the already landed
+  0062 SQL and manifest 39. Keep the old tail guard, old recovery exception, and
+  historical proof intact. Obtain a successful full release and owner closeout
+  before lifting the remaining freeze. This decision does not retroactively
+  admit #1708 or any earlier production action.
+- Admit `prod-schema-reconcile.yml` mode `apply-journaled-0062` and
+  `current-forecast-neon-rehearsal.yml` mode `journaled-0062` prospectively
+  through the matching governance amendment. Pin the landed SQL, manifest 39,
+  exact journal tail, and predecessor ledger. Require the complete ADR-074
+  baseline and 0050-0061 ledger and matching catalog. In one transaction under
+  the reconcile lock, apply exactly 0062 from the fully absent state or return a
+  verified no-op from the exact complete state. Refuse partial, inconsistent,
+  unknown, or newer states rather than repairing them.
+- Treat 0062 as a bounded schema change with no backfill. Its table, policies,
+  functions, and trigger also affect existing application access and write
+  paths. Require real PostgreSQL proof of the absent and complete catalog,
+  duplicate-safe readback, and failure containment. Preserve managed
+  backup/PITR, isolated restore, custody, and isolation requirements. Require
+  exact-SHA attempt-1 isolated rehearsal evidence and an independently reviewed
+  and signed recovery admission bound to the production run. Verify the
+  production target and restore reference again under the lock before DDL.
+- Keep the new receipt and its release evidence bound to 0062 by exact mode,
+  source SHA, attempt, artifact identity and digests, and successful post-apply
+  all-manifest audit. The owner separately dispatches the rehearsal, schema
+  apply, and later release. Applying the schema leaves actuals pilot activation
+  on its separate route.
+
+### Consequences
+
+The owner can admit a source-only forward fix without changing the landed
+migration, journal, or manifest. The fix alone establishes no provider,
+database, or release state. Missing recovery proof, target drift, schema
+mismatch, or ambiguous apply outcomes block mutation or further dispatch. A
+restore, rollback, application deployment, or pilot activation would require its
+own governed decision.
+
+[adr115-legacy-rehearsal]:
+  https://github.com/nikhillinit/Updog_restore/actions/runs/36632649327
+[adr115-legacy-apply]:
+  https://github.com/nikhillinit/Updog_restore/actions/runs/36642928665
+[adr115-onboarding-merge]:
+  https://github.com/nikhillinit/Updog_restore/pull/1708

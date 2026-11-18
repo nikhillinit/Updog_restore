@@ -17,6 +17,7 @@ on:
             actuals-draft-0056,
             actuals-restatement-0057,
             journaled-0050-0061,
+            journaled-0062,
           ]
         default: current-forecast-0050-0055
       expected_parent_migration_tail:
@@ -29,7 +30,11 @@ on:
             0053_g3_release_gate_hardening,
             0055_current_forecast_recompute_commands,
             0056_actuals_draft_revisions,
+            0061_durable_create_receipts,
           ]
+
+permissions:
+  contents: read
 
 concurrency:
   group: current-forecast-neon-${{ inputs.project_id }}-${{ inputs.parent_branch_id }}
@@ -52,6 +57,37 @@ jobs:
           test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_SHA"
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
       - uses: ./.github/actions/setup-node-env
+      - name: Require owner 0062 rehearsal on isolated target
+        if: inputs.migration_mode == 'journaled-0062'
+        env:
+          REPOSITORY_OWNER_ID: ${{ github.repository_owner_id }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          PROJECT_ID: ${{ inputs.project_id }}
+          PARENT_BRANCH_ID: ${{ inputs.parent_branch_id }}
+          DATABASE_NAME: ${{ inputs.database_name }}
+          ALLOWED_PROJECT_ID: ${{ vars.SCHEMA_0062_REHEARSAL_PROJECT_ID }}
+          ALLOWED_PARENT_BRANCH_ID: ${{ vars.SCHEMA_0062_REHEARSAL_PARENT_BRANCH_ID }}
+          ALLOWED_DATABASE_NAME: ${{ vars.SCHEMA_0062_REHEARSAL_DATABASE_NAME }}
+          PRODUCTION_PROJECT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_SHA" = "$EXPECTED_SHA"
+          test -n "$REPOSITORY_OWNER_ID"
+          test "$GITHUB_ACTOR_ID" = "$REPOSITORY_OWNER_ID"
+          test "$GITHUB_ACTOR" = "$GITHUB_TRIGGERING_ACTOR"
+          test -n "$PRODUCTION_PROJECT_ID"
+          test -n "$PROJECT_ID"
+          test "$PROJECT_ID" != "$PRODUCTION_PROJECT_ID"
+          test "$PROJECT_ID" = "$ALLOWED_PROJECT_ID"
+          test -n "$PARENT_BRANCH_ID"
+          test "$PARENT_BRANCH_ID" = "$ALLOWED_PARENT_BRANCH_ID"
+          test -n "$DATABASE_NAME"
+          test "$DATABASE_NAME" = "$ALLOWED_DATABASE_NAME"
+          git fetch origin refs/heads/main
+          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_SHA"
+
       - name: Rehearse bounded migration and tests
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
@@ -62,3 +98,12 @@ jobs:
           EXPECTED_PARENT_MIGRATION_TAIL: ${{ inputs.expected_parent_migration_tail }}
           ACTUALS_MIGRATION_REHEARSAL_MODE: ${{ inputs.migration_mode }}
         run: node scripts/release/rehearse-current-forecast-neon.mjs
+
+      - name: Upload exact 0062 rehearsal evidence
+        if: inputs.migration_mode == 'journaled-0062'
+        uses: actions/upload-artifact@v7
+        with:
+          name: journaled-0062-rehearsal-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.expected_sha }}
+          path: ${{ runner.temp }}/journaled-0062-rehearsal.json
+          if-no-files-found: error
+          retention-days: 7

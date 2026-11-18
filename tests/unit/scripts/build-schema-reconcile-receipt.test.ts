@@ -9,6 +9,7 @@ import {
   buildSchemaReconcileActualsRestatementReceipt,
   buildSchemaReconcileCatchupReceipt,
   buildSchemaReconcileCurrentForecastReceipt,
+  buildSchemaReconcileJournaled0062Receipt,
   buildSchemaReconcileJournaledRangeReceipt,
   buildSchemaReconcileReceipt,
   targetsFromLockTimeVector,
@@ -144,6 +145,46 @@ describe('build-schema-reconcile-receipt journaled 0050-0061 mode', () => {
     expect(() =>
       buildSchemaReconcileJournaledRangeReceipt({ ...input, completedAtMs: 99 })
     ).toThrow(/completedAtMs/);
+  });
+});
+
+describe('build-schema-reconcile-receipt journaled 0062 mode', () => {
+  const result = {
+    preState: 'ready',
+    postState: 'complete',
+    applied: true,
+    migrationRange: ['0062_vehicle_onboarding_commands'],
+  };
+  const input = {
+    repository: 'press-on/updog',
+    runId: '123',
+    runAttempt: 1 as const,
+    sourceSha: 'a'.repeat(40),
+    startedAtMs: 100,
+    completedAtMs: 150,
+  };
+
+  it('binds the completed runner result to the distinct mode and source', () => {
+    expect(buildSchemaReconcileJournaled0062Receipt({ ...input, result })).toEqual({
+      ...result,
+      repository: input.repository,
+      workflowPath: '.github/workflows/prod-schema-reconcile.yml',
+      runId: input.runId,
+      runAttempt: input.runAttempt,
+      mode: 'apply-journaled-0062',
+      sourceSha: input.sourceSha,
+      buildTimeMs: 50,
+      result: 'applied_and_clean',
+    });
+  });
+
+  it('refuses to build a receipt from a ready read-only result', () => {
+    expect(() =>
+      buildSchemaReconcileJournaled0062Receipt({
+        ...input,
+        result: { ...result, postState: 'ready', applied: false },
+      })
+    ).toThrow();
   });
 });
 

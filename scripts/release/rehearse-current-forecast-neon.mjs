@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { appendFile, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { appendFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -16,6 +16,9 @@ const DATABASE = /^[A-Za-z0-9_-]{1,63}$/;
 const OPERATION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EXPECTED_TAILS = new Set(['0049_kpi_observations', '0053_g3_release_gate_hardening']);
 const JOURNALED_MODE = 'journaled-0050-0061';
+const SUCCESSOR_MODE = 'journaled-0062';
+const SUCCESSOR_PREDECESSOR = '0061_durable_create_receipts';
+const SUCCESSOR_TAG = '0062_vehicle_onboarding_commands';
 const JOURNALED_TAILS = new Set([...EXPECTED_TAILS, '0055_current_forecast_recompute_commands']);
 const JOURNALED_RUNNER = 'scripts/run-journaled-0050-0061-migrations.mjs';
 const READY_ENDPOINT_STATES = new Set(['active', 'idle']);
@@ -33,18 +36,21 @@ export function validateRehearsalInput(input) {
       'actuals-draft-0056',
       'actuals-restatement-0057',
       JOURNALED_MODE,
+      SUCCESSOR_MODE,
     ].includes(mode)
   ) {
     throw new Error('Rehearsal mode is invalid');
   }
   const expectedTailAllowed =
-    mode === 'actuals-restatement-0057'
-      ? input.expectedParentMigrationTail === '0056_actuals_draft_revisions'
-      : mode === 'actuals-draft-0056'
-        ? input.expectedParentMigrationTail === '0055_current_forecast_recompute_commands'
-        : (mode === JOURNALED_MODE ? JOURNALED_TAILS : EXPECTED_TAILS).has(
-            input.expectedParentMigrationTail
-          );
+    mode === SUCCESSOR_MODE
+      ? input.expectedParentMigrationTail === SUCCESSOR_PREDECESSOR
+      : mode === 'actuals-restatement-0057'
+        ? input.expectedParentMigrationTail === '0056_actuals_draft_revisions'
+        : mode === 'actuals-draft-0056'
+          ? input.expectedParentMigrationTail === '0055_current_forecast_recompute_commands'
+          : (mode === JOURNALED_MODE ? JOURNALED_TAILS : EXPECTED_TAILS).has(
+              input.expectedParentMigrationTail
+            );
   return {
     ...(input.mode === undefined ? {} : { mode }),
     expectedSha: required(input.expectedSha, 'expectedSha', SHA),
@@ -229,7 +235,7 @@ function runCommand(command, args, env) {
 }
 
 /**
- * Applies 0050-0061 with the runner's own target fingerprint, then reads the ledger back.
+ * Applies a journaled capability using the child's exact target fingerprint.
  * @param {{
  *   connectionString: string;
  *   databaseName: string;
@@ -307,6 +313,7 @@ async function rehearseJournaledRange({
  *   githubRunAttempt: number;
  *   fetchImpl?: (input: string, init?: Record<string, any>) => Promise<{ ok: boolean, json: () => Promise<Record<string, any>> }>;
  *   tailReader?: (connectionString: string) => Promise<string>;
+ *   successorRunner?: typeof import('../run-journaled-0062-migration.mjs').runJournaled0062Migration;
  *   commandRunner?: (command: string, args: string[], env: Record<string, string>) => Promise<void>;
  *   sleepImpl?: (milliseconds: number) => Promise<void>;
  * }} options
@@ -318,6 +325,7 @@ export async function rehearseCurrentForecastNeon({
   githubRunAttempt,
   fetchImpl = globalThis.fetch,
   tailReader = readMigrationTail,
+  successorRunner,
   commandRunner = runCommand,
   sleepImpl = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
 }) {
@@ -483,10 +491,43 @@ export async function rehearseCurrentForecastNeon({
     identity: 'Created Neon',
   });
   const fingerprint = directHostFingerprint(rehearsalUri.uri);
+  const successor = value.mode === SUCCESSOR_MODE;
   const journaled = value.mode === JOURNALED_MODE;
 
   let journaledOutput = {};
-  if (journaled) {
+  if (successor) {
+    const { computeTargetFingerprint } = await import('../reconcile-prod-schema.mjs');
+    const { tsImport } = await import('tsx/esm/api');
+    const { Journaled0062MigrationResultV1Schema } = await tsImport(
+      '../../shared/contracts/schema-reconcile-receipt-v1.contract.ts',
+      import.meta.url
+    );
+    const run =
+      successorRunner ??
+      (await import('../run-journaled-0062-migration.mjs')).runJournaled0062Migration;
+    const connectionString = rehearsalUri.uri;
+    const endpoint = effectiveEndpoint(connectionString);
+    const expectedTargetFingerprint = computeTargetFingerprint({
+      directHost: endpoint.host,
+      port: endpoint.port,
+      database: value.databaseName,
+      user: childRoleName,
+    });
+    try {
+      const startedAt = performance.now();
+      const migrationResult = Journaled0062MigrationResultV1Schema.parse(
+        await run({ connectionString, apply: true, expectedTargetFingerprint })
+      );
+      const applyDurationMs = Math.round(performance.now() - startedAt);
+      const readback = Journaled0062MigrationResultV1Schema.parse(await run({ connectionString }));
+      if (!migrationResult.applied || readback.preState !== 'complete' || readback.applied) {
+        throw new Error('Migration did not complete from the 0061 predecessor');
+      }
+      journaledOutput = { migrationMode: SUCCESSOR_MODE, migrationResult, applyDurationMs };
+    } catch {
+      throw new Error('Isolated 0062 apply or ledger readback refused');
+    }
+  } else if (journaled) {
     journaledOutput = await rehearseJournaledRange({
       connectionString: rehearsalUri.uri,
       databaseName: value.databaseName,
@@ -534,7 +575,11 @@ export async function rehearseCurrentForecastNeon({
   }
   if (
     afterMigrationTail !==
-    (journaled ? '0061_durable_create_receipts' : '0055_current_forecast_recompute_commands')
+    (successor
+      ? SUCCESSOR_TAG
+      : journaled
+        ? SUCCESSOR_PREDECESSOR
+        : '0055_current_forecast_recompute_commands')
   ) {
     throw new Error('Rehearsal migration tail mismatch');
   }
@@ -569,6 +614,12 @@ async function main() {
     githubRunAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
   });
   const safeJson = JSON.stringify(result);
+  if (result.migrationMode === SUCCESSOR_MODE) {
+    await writeFile(path.join(process.env.RUNNER_TEMP, 'journaled-0062-rehearsal.json'), safeJson, {
+      mode: 0o600,
+    });
+    return;
+  }
   if (process.env.GITHUB_OUTPUT)
     await appendFile(process.env.GITHUB_OUTPUT, `result=${safeJson}\n`);
   if (process.env.GITHUB_STEP_SUMMARY)

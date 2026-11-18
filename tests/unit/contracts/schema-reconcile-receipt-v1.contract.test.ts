@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 import {
   CURRENT_FORECAST_MIGRATION_RANGE,
   JOURNALED_RANGE_MIGRATION_RANGE,
+  Journaled0062MigrationResultV1Schema,
+  SchemaReconcileJournaled0062ReceiptV1Schema,
   SchemaReconcileCurrentForecastReceiptV1Schema,
   SchemaReconcileJournaledRangeReceiptV1Schema,
   SchemaReconcileReceiptV1Schema,
@@ -51,6 +53,60 @@ describe('schema-reconcile-receipt-v1 contract', { retry: 0 }, () => {
         ...validReceipt,
         postDecision: 'APPLY-MISSING-DDL',
       }).success
+    ).toBe(false);
+  });
+});
+
+describe('Journaled 0062 schema reconcile receipt', { retry: 0 }, () => {
+  const result = {
+    preState: 'ready',
+    postState: 'complete',
+    applied: true,
+    migrationRange: ['0062_vehicle_onboarding_commands'],
+  };
+  const receipt = {
+    ...result,
+    repository: 'press-on/updog',
+    workflowPath: '.github/workflows/prod-schema-reconcile.yml',
+    runId: '123',
+    runAttempt: 1,
+    mode: 'apply-journaled-0062',
+    sourceSha: 'a'.repeat(40),
+    buildTimeMs: 10,
+    result: 'applied_and_clean',
+  };
+
+  it.each([
+    ['ready', 'ready', false, true, false],
+    ['ready', 'ready', true, false, false],
+    ['ready', 'complete', false, false, false],
+    ['ready', 'complete', true, true, true],
+    ['complete', 'ready', false, false, false],
+    ['complete', 'ready', true, false, false],
+    ['complete', 'complete', false, true, true],
+    ['complete', 'complete', true, false, false],
+  ])(
+    'validates %s to %s with applied=%s',
+    (preState, postState, applied, validResult, validReceipt) => {
+      const state = { preState, postState, applied };
+      expect(Journaled0062MigrationResultV1Schema.safeParse({ ...result, ...state }).success).toBe(
+        validResult
+      );
+      expect(
+        SchemaReconcileJournaled0062ReceiptV1Schema.safeParse({ ...receipt, ...state }).success
+      ).toBe(validReceipt);
+    }
+  );
+
+  it.each([
+    { runAttempt: 2 },
+    { mode: 'apply-journaled-0050-0061' },
+    { migrationRange: JOURNALED_RANGE_MIGRATION_RANGE },
+    { migrationRange: ['0062_vehicle_onboarding_commands', '0063_future'] },
+    { targetFingerprint: 'b'.repeat(64) },
+  ])('rejects unbound receipt fields %#', (change) => {
+    expect(
+      SchemaReconcileJournaled0062ReceiptV1Schema.safeParse({ ...receipt, ...change }).success
     ).toBe(false);
   });
 });
