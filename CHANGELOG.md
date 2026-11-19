@@ -22,6 +22,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Planned (2026-11-19)
+
+- F_1.3.8 plan: ninth release vehicle prerequisites and a solo-operator route
+  for migration 0062. It lists the gates the ninth F_1.21.1 vehicle must clear:
+  Railway token recovery under a successor to the consumed ADR-110 route, and
+  migration 0062 applied to production before the vehicle. It drafts ADR-116, a
+  narrow solo-operator ratification of the ADR-115 apply route for 0062, and
+  continues slices 1 and 3 to 9 of the F_1.3.7 plan. The F_1.3.7 plan records
+  the ADR-114 landing (#1686) and the consumed ADR-110 attempt. F_1.3.8 grants
+  no merge, production, release, credential, provider, environment, or schema
+  authority.
+
 ### Added (2026-11-04)
 
 - Main-fund onboarding in LP reporting imports: an explicitly granted pilot
