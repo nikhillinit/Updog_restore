@@ -5,14 +5,26 @@ import type { CapitalPlanAllocation } from '@/stores/fundStore';
 import { useFundTuple } from '@/stores/useFundSelector';
 import { fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
 import { formatUSDShort } from '@/lib/formatting';
-import { runEconomicsModel } from '@shared/lib/economics/economics-engine';
+import {
+  EconomicsInputValidationError,
+  runEconomicsModel,
+} from '@shared/lib/economics/economics-engine';
 
 interface DraftEconomicsPreview {
   dpi: number | null;
   tvpi: number | null;
   irr: number | null;
   projectedValue: number | null;
+  unavailableReason: string | null;
 }
+
+const EMPTY_PREVIEW: DraftEconomicsPreview = {
+  dpi: null,
+  tvpi: null,
+  irr: null,
+  projectedValue: null,
+  unavailableReason: null,
+};
 
 function formatCurrency(value: number | null | undefined) {
   return value == null || !Number.isFinite(value) ? 'N/A' : formatUSDShort(value);
@@ -57,9 +69,7 @@ function estimateCompanies(fundSizeDollars: number | null, allocations: CapitalP
 }
 
 function previewDraftEconomics(fundSizeDollars: number | null): DraftEconomicsPreview {
-  if (fundSizeDollars == null) {
-    return { dpi: null, tvpi: null, irr: null, projectedValue: null };
-  }
+  if (fundSizeDollars == null) return EMPTY_PREVIEW;
 
   try {
     const draft = fundStoreToDraftWriteV1(fundStore.getState(), {
@@ -73,9 +83,15 @@ function previewDraftEconomics(fundSizeDollars: number | null): DraftEconomicsPr
       tvpi: result.summary.finalTvpi,
       irr: result.summary.lpNetIrr,
       projectedValue,
+      unavailableReason: null,
     };
-  } catch {
-    return { dpi: null, tvpi: null, irr: null, projectedValue: null };
+  } catch (error) {
+    // Refused drafts must say why the return cards are missing, not drop them silently.
+    const detail =
+      error instanceof EconomicsInputValidationError
+        ? error.issues.map((issue) => issue.message).join('; ')
+        : 'the economics preview could not run on these inputs';
+    return { ...EMPTY_PREVIEW, unavailableReason: `Return metrics unavailable: ${detail}.` };
   }
 }
 
@@ -115,6 +131,8 @@ export function FundConstructionKpiHeader() {
     mgmtFeeRecyclingRate,
     allowFutureRecycling,
     economicsAssumptions,
+    expenseHorizonMonths,
+    managementFeeExemptsGp,
   ] = useFundTuple((state) => [
     state.fundName,
     state.fundSize,
@@ -135,6 +153,9 @@ export function FundConstructionKpiHeader() {
     state.mgmtFeeRecyclingRate,
     state.allowFutureRecycling,
     state.economicsAssumptions,
+    // Flat store fields the draft adapter folds into economicsAssumptions.
+    state.expenseHorizonMonths,
+    state.managementFeeExemptsGp,
   ]);
 
   const fundSizeDollars = fundSize != null && fundSize > 0 ? fundSize : null;
@@ -168,6 +189,8 @@ export function FundConstructionKpiHeader() {
     mgmtFeeRecyclingRate,
     allowFutureRecycling,
     economicsAssumptions,
+    expenseHorizonMonths,
+    managementFeeExemptsGp,
   ]);
   const preview = useMemo(() => {
     void previewInputKey;
@@ -264,6 +287,15 @@ export function FundConstructionKpiHeader() {
       >
         Draft preview · not published. Estimates from the current construction inputs.
       </p>
+      {preview.unavailableReason && (
+        <p
+          role="status"
+          className="mb-2 text-xs text-presson-textMuted"
+          data-testid="fund-construction-kpis-unavailable"
+        >
+          {preview.unavailableReason}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         {visibleCards.map((card) => (
           <HeaderMetricCard key={card.key} card={card} testId={`construction-kpi-${card.key}`} />

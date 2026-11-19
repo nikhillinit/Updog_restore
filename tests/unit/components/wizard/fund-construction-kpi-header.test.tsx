@@ -68,6 +68,30 @@ describe('FundConstructionKpiHeader', () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it('says why return cards are missing when the engine refuses the draft', () => {
+    render(<FundConstructionKpiHeader />);
+    expect(screen.queryByTestId('fund-construction-kpis-unavailable')).toBeNull();
+    expect(screen.getByTestId('construction-kpi-tvpi')).toBeInTheDocument();
+
+    // Flat store field only: the preview must recompute without other input changes.
+    act(() => {
+      fundStore.setState({ expenseHorizonMonths: 150 });
+    });
+
+    expect(screen.getByTestId('fund-construction-kpis-unavailable')).toHaveTextContent(
+      'Return metrics unavailable: Annual economics requires expense coverage equal to the fund term.'
+    );
+    expect(screen.queryByTestId('construction-kpi-tvpi')).toBeNull();
+    expect(screen.getByTestId('construction-kpi-totalInvested')).toBeInTheDocument();
+
+    act(() => {
+      fundStore.setState({ expenseHorizonMonths: 120 });
+    });
+
+    expect(screen.queryByTestId('fund-construction-kpis-unavailable')).toBeNull();
+    expect(screen.getByTestId('construction-kpi-tvpi')).toBeInTheDocument();
+  });
+
   it('keeps sub-million fund sizes in dollars without magnitude guessing', () => {
     act(() => {
       fundStore.setState({ fundSize: 750_000 });
