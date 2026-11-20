@@ -19,7 +19,7 @@ const MAX_RESTORE_AGE = 72 * 60 * MINUTE;
 const TAG = '0062_vehicle_onboarding_commands';
 const REHEARSAL_WORKFLOW = '.github/workflows/current-forecast-neon-rehearsal.yml';
 
-class AdmissionError extends Error {}
+export class AdmissionError extends Error {}
 
 function requireEvidence(condition, message) {
   if (!condition) throw new AdmissionError(message);

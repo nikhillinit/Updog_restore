@@ -456,17 +456,19 @@ entrypoint. Use the named workflow for production apply.
    Keep all three input files outside the repository; the private-key file must
    not be group- or world-readable. Authenticate `gh` as the repository owner
    and set `NEON_API_KEY`. The helper prints only the envelope to stdout on
-   success and nothing to stdout on refusal. Its self-verification must pass
-   before the owner writes the envelope once to the protected
-   `SCHEMA_0062_ADMISSION` secret (write (d)) and approves the run. Both the
-   admission review and the restore reference must be at most 30 minutes old
-   when checked. Approve no later than 20 minutes after the restore reference
-   was created: the workflow checks both bounds after setup, retention check,
-   and pre-apply audit, then again under the reconcile lock. The workflow
-   verifies the signature and rehearsal archive, and checks live protected
-   source, provider target, and restore reference again under the reconcile lock
-   before DDL. Withhold approval when the gate, current provider evidence, or
-   reviewed binding is absent or stale.
+   success and nothing to stdout on refusal. A refusal writes one stderr line
+   with a fixed reason code or fixed admission-check text, never identifiers,
+   values, paths, or key material. Its self-verification must pass before the
+   owner writes the envelope once to the protected `SCHEMA_0062_ADMISSION`
+   secret (write (d)) and approves the run. Both the admission review and the
+   restore reference must be at most 30 minutes old when checked. Approve no
+   later than 20 minutes after the restore reference was created: the workflow
+   checks both bounds after setup, retention check, and pre-apply audit, then
+   again under the reconcile lock. The workflow verifies the signature and
+   rehearsal archive, and checks live protected source, provider target, and
+   restore reference again under the reconcile lock before DDL. Withhold
+   approval when the gate, current provider evidence, or reviewed binding is
+   absent or stale.
 
 5. Verify the locked ledger and catalog readback. An exact complete 0062 state,
    all 39 manifests clean, and a valid attempt-1 receipt establish the schema

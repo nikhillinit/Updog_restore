@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { computeTargetFingerprint } from '../../../scripts/reconcile-prod-schema.mjs';
 import { assert0062Admission } from '../../../scripts/release/journaled-0062-admission.mjs';
-import { sign0062Admission } from '../../../scripts/release/sign-0062-admission.mjs';
+import { refusalReason, sign0062Admission } from '../../../scripts/release/sign-0062-admission.mjs';
 
 const temporaryDirectories = [];
 const now = Date.parse('2026-11-20T18:00:00Z');
@@ -147,6 +147,8 @@ function independentEnv(envelope, values) {
   };
 }
 
+const reasonOf = (promise) => promise.then(() => 'RESOLVED', refusalReason);
+
 function signFixture(values, changes = {}) {
   return sign0062Admission({
     payloadText: JSON.stringify({ ...values.payload, ...changes }),
@@ -198,7 +200,7 @@ describe('sign0062Admission', () => {
         neon: values.neon,
         now,
       })
-    ).rejects.toThrow();
+    ).rejects.toThrow('0062 signed recovery admission is missing or invalid');
   });
 
   it('refuses an envelope whose signed payload was edited', async () => {
@@ -208,7 +210,7 @@ describe('sign0062Admission', () => {
 
     expect(() =>
       assert0062Admission({ env: independentEnv(JSON.stringify(result), values), now })
-    ).toThrow();
+    ).toThrow('0062 signed recovery admission is missing or invalid');
   });
 
   it('refuses a payload missing a required field', async () => {
@@ -227,13 +229,20 @@ describe('sign0062Admission', () => {
         neon: values.neon,
         now,
       })
-    ).rejects.toThrow();
+    ).rejects.toThrow(
+      '0062 recovery admission is stale or does not bind the exact run, source, safe targets and evidence'
+    );
   });
 
   it('refuses a stale reviewedAtMs', async () => {
     const values = fixture();
 
-    await expect(signFixture(values, { reviewedAtMs: now - 30 * 60_000 - 1 })).rejects.toThrow();
+    expect(await reasonOf(signFixture(values, { reviewedAtMs: now - 30 * 60_000 - 1 }))).toBe(
+      'REVIEW_STALE_OR_MISSING'
+    );
+    expect(
+      await reasonOf(signFixture(values, { isolatedRestoredAtMs: now - 72 * 3_600_000 - 1 }))
+    ).toBe('RESTORE_STALE_OR_MISSING');
   });
 
   it.each([
@@ -246,21 +255,23 @@ describe('sign0062Admission', () => {
   ])('refuses payload %s that differs from the record', async (field, value) => {
     const values = fixture();
 
-    await expect(signFixture(values, { [field]: value })).rejects.toThrow();
+    expect(await reasonOf(signFixture(values, { [field]: value }))).toBe(
+      '0062 recovery admission is stale or does not bind the exact run, source, safe targets and evidence'
+    );
   });
 
   it('refuses a run with another display title', async () => {
     const values = fixture();
     values.run.display_title = `actuals-schema:audit:${candidateSha}`;
 
-    await expect(signFixture(values)).rejects.toThrow();
+    expect(await reasonOf(signFixture(values))).toBe('RUN_TITLE_MISMATCH');
   });
 
   it('refuses a run that is not waiting', async () => {
     const values = fixture();
     values.run.status = 'in_progress';
 
-    await expect(signFixture(values)).rejects.toThrow();
+    expect(await reasonOf(signFixture(values))).toBe('RUN_NOT_WAITING');
   });
 
   it('refuses a pending deployment for another environment', async () => {
@@ -269,7 +280,7 @@ describe('sign0062Admission', () => {
       { environment: { name: 'synthetic-other-environment' } },
     ];
 
-    await expect(signFixture(values)).rejects.toThrow();
+    expect(await reasonOf(signFixture(values))).toBe('PENDING_ENVIRONMENT_MISMATCH');
   });
 
   it.each([
@@ -280,35 +291,41 @@ describe('sign0062Admission', () => {
     const values = fixture();
     values.endpoint[field] = value;
 
-    await expect(signFixture(values)).rejects.toThrow();
+    expect(await reasonOf(signFixture(values))).toBe(
+      '0062 protected target does not match the live Neon read-write endpoint'
+    );
   });
 
   it('refuses a pooler endpoint host', async () => {
     const values = fixture();
     values.endpoint.host = 'prod-synthetic-pooler.example.invalid';
 
-    await expect(signFixture(values)).rejects.toThrow();
+    expect(await reasonOf(signFixture(values))).toBe(
+      '0062 protected target does not match the live Neon read-write endpoint'
+    );
   });
 
   it('refuses a live endpoint whose fingerprint differs from the record', async () => {
     const values = fixture();
     values.endpoint.host = 'other-synthetic.example.invalid';
 
-    await expect(signFixture(values)).rejects.toThrow();
+    expect(await reasonOf(signFixture(values))).toBe(
+      '0062 protected target does not match the live Neon read-write endpoint'
+    );
   });
 
   it('refuses a database absent from the production branch', async () => {
     const values = fixture();
     values.neon.getDatabases = async () => [{ name: 'other_synthetic_database' }];
 
-    await expect(signFixture(values)).rejects.toThrow();
+    expect(await reasonOf(signFixture(values))).toBe('DATABASE_ABSENT');
   });
 
   it('refuses a role absent from the production branch', async () => {
     const values = fixture();
     values.neon.getRoles = async () => [{ name: 'other_synthetic_role' }];
 
-    await expect(signFixture(values)).rejects.toThrow();
+    expect(await reasonOf(signFixture(values))).toBe('ROLE_ABSENT');
   });
 
   it('refuses a record with a missing key', async () => {
@@ -327,7 +344,7 @@ describe('sign0062Admission', () => {
         neon: values.neon,
         now,
       })
-    ).rejects.toThrow();
+    ).rejects.toThrow('RECORD_KEYS_INVALID');
   });
 
   it('refuses a record with an extra key', async () => {
@@ -344,7 +361,7 @@ describe('sign0062Admission', () => {
         neon: values.neon,
         now,
       })
-    ).rejects.toThrow();
+    ).rejects.toThrow('RECORD_KEYS_INVALID');
   });
 });
 
@@ -382,7 +399,7 @@ describe('sign-0062-admission CLI', () => {
 
     expect(result.status).toBe(1);
     expect(result.stdout).toBe('');
-    expect(result.stderr).toBe('0062 admission signing refused\n');
+    expect(result.stderr).toBe('0062 admission signing refused: INPUT_FILE_INSIDE_REPOSITORY\n');
     for (const identifier of [repository, '987654321', 'synthetic-record-value']) {
       expect(result.stderr).not.toContain(identifier);
     }
@@ -421,6 +438,47 @@ describe('sign-0062-admission CLI', () => {
 
     expect(result.status).toBe(1);
     expect(result.stdout).toBe('');
-    expect(result.stderr).toBe('0062 admission signing refused\n');
+    expect(result.stderr).toBe(
+      '0062 admission signing refused: PRIVATE_KEY_FILE_READABLE_BY_OTHERS\n'
+    );
+  });
+
+  it('refuses a missing input file without printing its path', async () => {
+    const outside = await mkdtemp(path.join(os.tmpdir(), 'sign0062-'));
+    temporaryDirectories.push(outside);
+    const missingPath = path.join(outside, 'synthetic-missing-payload.json');
+    const privateKeyPath = path.join(outside, 'private.pem');
+    const recordPath = path.join(outside, 'record.json');
+    await Promise.all([
+      writeFile(privateKeyPath, 'synthetic-private-key', { mode: 0o600 }),
+      writeFile(recordPath, '{}'),
+    ]);
+
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.resolve('scripts/release/sign-0062-admission.mjs'),
+        '--repo',
+        repository,
+        '--run-id',
+        runId,
+        '--payload',
+        missingPath,
+        '--private-key',
+        privateKeyPath,
+        '--record',
+        recordPath,
+      ],
+      { cwd: process.cwd(), encoding: 'utf8', timeout: 20_000 }
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe('0062 admission signing refused: INPUT_FILE_UNREADABLE\n');
+    expect(result.stderr).not.toContain('synthetic-missing-payload');
+  });
+
+  it('reports unexpected errors without their text', () => {
+    expect(refusalReason(new Error('synthetic-protected-detail'))).toBe('UNEXPECTED_ERROR');
   });
 });

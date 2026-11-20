@@ -5,9 +5,14 @@ import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assert0062Admission, assert0062ProductionEndpoint } from './journaled-0062-admission.mjs';
+import {
+  AdmissionError,
+  assert0062Admission,
+  assert0062ProductionEndpoint,
+} from './journaled-0062-admission.mjs';
 
 const ID = /^[1-9][0-9]{0,15}$/;
+const MINUTE = 60_000;
 const REFUSAL = '0062 admission signing refused';
 const RECORD_KEYS = [
   'ACTUALS_PREFLIGHT_NEON_PROJECT_ID',
@@ -24,12 +29,35 @@ const ENVIRONMENT_KEYS = [
   'SCHEMA_0062_REHEARSAL_DATABASE_NAME',
 ];
 
-function requireValid(condition) {
-  if (!condition) throw new Error('invalid admission signing input');
+// Refusal codes are fixed tokens; they never carry identifiers, values, paths or key material.
+export class SigningRefusal extends Error {
+  constructor(code) {
+    super(code);
+    this.code = code;
+  }
+}
+
+function requireValid(condition, code) {
+  if (!condition) throw new SigningRefusal(code);
+}
+
+function parseJson(text, code) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new SigningRefusal(code);
+  }
 }
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Admission check messages are fixed texts; any other error text may hold protected data. */
+export function refusalReason(error) {
+  if (error instanceof SigningRefusal) return error.code;
+  if (error instanceof AdmissionError) return error.message;
+  return 'UNEXPECTED_ERROR';
 }
 
 export async function sign0062Admission({
@@ -42,11 +70,16 @@ export async function sign0062Admission({
   neon,
   now = Date.now(),
 }) {
-  requireValid(ID.test(runId ?? '') && /^[\w.-]+\/[\w.-]+$/.test(repository ?? ''));
-  requireValid(typeof payloadText === 'string' && isObject(record));
   requireValid(
-    JSON.stringify(Object.keys(record).sort()) === JSON.stringify([...RECORD_KEYS].sort())
+    ID.test(runId ?? '') && /^[\w.-]+\/[\w.-]+$/.test(repository ?? ''),
+    'INVALID_ARGUMENTS'
   );
+  requireValid(
+    isObject(record) &&
+      JSON.stringify(Object.keys(record).sort()) === JSON.stringify([...RECORD_KEYS].sort()),
+    'RECORD_KEYS_INVALID'
+  );
+  requireValid(typeof payloadText === 'string', 'PAYLOAD_INVALID');
 
   const [run, repositoryInfo, pendingDeployments] = await Promise.all([
     github.getRun(runId),
@@ -55,30 +88,54 @@ export async function sign0062Admission({
   ]);
   const candidateSha = run?.head_sha;
   requireValid(
-    run?.status === 'waiting' &&
-      String(run.id) === runId &&
+    String(run?.id) === runId &&
       run.repository?.full_name === repository &&
-      repositoryInfo?.full_name === repository &&
-      run.display_title === `actuals-schema:apply-journaled-0062:${candidateSha}` &&
-      Array.isArray(pendingDeployments) &&
-      pendingDeployments.some((deployment) => deployment?.environment?.name === 'production-schema')
+      repositoryInfo?.full_name === repository,
+    'RUN_IDENTITY_MISMATCH'
+  );
+  requireValid(run.status === 'waiting', 'RUN_NOT_WAITING');
+  requireValid(
+    run.display_title === `actuals-schema:apply-journaled-0062:${candidateSha}`,
+    'RUN_TITLE_MISMATCH'
+  );
+  requireValid(
+    Array.isArray(pendingDeployments) &&
+      pendingDeployments.some(
+        (deployment) => deployment?.environment?.name === 'production-schema'
+      ),
+    'PENDING_ENVIRONMENT_MISMATCH'
   );
   const expectedSha = run.display_title.slice('actuals-schema:apply-journaled-0062:'.length);
 
   const environmentVariables = await github.getEnvironmentVariables('production-schema');
-  requireValid(Array.isArray(environmentVariables));
+  requireValid(Array.isArray(environmentVariables), 'ENVIRONMENT_VARIABLES_UNREADABLE');
   const environment = {};
   for (const name of ENVIRONMENT_KEYS) {
     const matches = environmentVariables.filter((variable) => variable?.name === name);
-    requireValid(matches.length === 1 && typeof matches[0].value === 'string');
+    requireValid(
+      matches.length === 1 && typeof matches[0].value === 'string',
+      'ENVIRONMENT_VARIABLE_MISSING'
+    );
     environment[name] = matches[0].value;
   }
 
-  const parsedPayload = JSON.parse(payloadText);
-  requireValid(isObject(parsedPayload) && typeof privateKeyPem === 'string');
+  const parsedPayload = parseJson(payloadText, 'PAYLOAD_INVALID');
+  requireValid(isObject(parsedPayload), 'PAYLOAD_INVALID');
+  // Pre-checks name the likely time failure; assert0062Admission below stays authoritative.
+  const fresh = (time, age) => Number.isSafeInteger(time) && time <= now && now - time <= age;
+  requireValid(fresh(parsedPayload.reviewedAtMs, 30 * MINUTE), 'REVIEW_STALE_OR_MISSING');
+  requireValid(
+    fresh(parsedPayload.isolatedRestoredAtMs, 72 * 60 * MINUTE),
+    'RESTORE_STALE_OR_MISSING'
+  );
   const payload = JSON.stringify(parsedPayload);
-  const privateKey = createPrivateKey(privateKeyPem);
-  requireValid(privateKey.asymmetricKeyType === 'ed25519');
+  let privateKey;
+  try {
+    privateKey = createPrivateKey(privateKeyPem);
+  } catch {
+    throw new SigningRefusal('PRIVATE_KEY_INVALID');
+  }
+  requireValid(privateKey.asymmetricKeyType === 'ed25519', 'PRIVATE_KEY_INVALID');
   const signature = sign(null, Buffer.from(payload, 'utf8'), privateKey).toString('base64');
   const envelope = JSON.stringify({ payload, signature });
 
@@ -110,22 +167,30 @@ export async function sign0062Admission({
   ]);
   assert0062ProductionEndpoint({ proof, endpoint });
   requireValid(
-    Array.isArray(databases) && databases.some((database) => database?.name === proof.database)
+    Array.isArray(databases) && databases.some((database) => database?.name === proof.database),
+    'DATABASE_ABSENT'
   );
-  requireValid(Array.isArray(roles) && roles.some((role) => role?.name === proof.role));
+  requireValid(
+    Array.isArray(roles) && roles.some((role) => role?.name === proof.role),
+    'ROLE_ABSENT'
+  );
 
   return envelope;
 }
 
 function ghApi(endpoint) {
-  return JSON.parse(
-    execFileSync('gh', ['api', endpoint], {
+  let output;
+  try {
+    output = execFileSync('gh', ['api', endpoint], {
       encoding: 'utf8',
       timeout: 20_000,
       maxBuffer: 256 * 1024,
       stdio: ['ignore', 'pipe', 'ignore'],
-    })
-  );
+    });
+  } catch {
+    throw new SigningRefusal('GITHUB_READ_FAILED');
+  }
+  return parseJson(output, 'GITHUB_READ_FAILED');
 }
 
 function createGithubReader(repository) {
@@ -140,7 +205,7 @@ function createGithubReader(repository) {
         const result = ghApi(
           `${base}/environments/${encodeURIComponent(environmentName)}/variables?per_page=100&page=${page}`
         );
-        requireValid(Array.isArray(result?.variables));
+        requireValid(Array.isArray(result?.variables), 'ENVIRONMENT_VARIABLES_UNREADABLE');
         variables.push(...result.variables);
         if (result.variables.length < 100) return variables;
       }
@@ -150,14 +215,19 @@ function createGithubReader(repository) {
 
 function createNeonReader(apiKey) {
   async function neonJson(resource) {
-    requireValid(typeof apiKey === 'string' && apiKey.length > 0);
-    const response = await fetch(`https://console.neon.tech/api/v2${resource}`, {
-      headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
-      redirect: 'error',
-      signal: AbortSignal.timeout(10_000),
-    });
-    requireValid(response.ok);
-    return response.json();
+    requireValid(typeof apiKey === 'string' && apiKey.length > 0, 'NEON_API_KEY_MISSING');
+    let response;
+    try {
+      response = await fetch(`https://console.neon.tech/api/v2${resource}`, {
+        headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
+        redirect: 'error',
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch {
+      throw new SigningRefusal('NEON_READ_FAILED');
+    }
+    requireValid(response.ok, 'NEON_READ_FAILED');
+    return parseJson(await response.text(), 'NEON_READ_FAILED');
   }
 
   return {
@@ -182,12 +252,13 @@ function parseArgs(argv) {
         !values.has(flag) &&
         typeof argv[index + 1] === 'string' &&
         argv[index + 1].length > 0 &&
-        !argv[index + 1].startsWith('--')
+        !argv[index + 1].startsWith('--'),
+      'INVALID_ARGUMENTS'
     );
     values.set(flag, argv[index + 1]);
     index += 1;
   }
-  requireValid(values.size === 5);
+  requireValid(values.size === 5, 'INVALID_ARGUMENTS');
   return {
     repository: values.get('--repo'),
     runId: values.get('--run-id'),
@@ -218,17 +289,35 @@ function isWithinDirectory(directory, file) {
 }
 
 async function resolveExternalFile(filePath, root, { privateKey = false } = {}) {
-  const resolvedPath = await realpath(filePath);
-  requireValid(!isWithinDirectory(root, resolvedPath));
-  const metadata = await stat(resolvedPath);
-  requireValid(metadata.isFile());
-  if (privateKey) requireValid((metadata.mode & 0o044) === 0);
+  let resolvedPath;
+  let metadata;
+  try {
+    resolvedPath = await realpath(filePath);
+    metadata = await stat(resolvedPath);
+  } catch {
+    throw new SigningRefusal('INPUT_FILE_UNREADABLE');
+  }
+  requireValid(!isWithinDirectory(root, resolvedPath), 'INPUT_FILE_INSIDE_REPOSITORY');
+  requireValid(metadata.isFile(), 'INPUT_FILE_UNREADABLE');
+  if (privateKey)
+    requireValid((metadata.mode & 0o044) === 0, 'PRIVATE_KEY_FILE_READABLE_BY_OTHERS');
   return resolvedPath;
+}
+
+async function readInput(filePath) {
+  try {
+    return await readFile(filePath, 'utf8');
+  } catch {
+    throw new SigningRefusal('INPUT_FILE_UNREADABLE');
+  }
 }
 
 async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
   const args = parseArgs(argv);
-  requireValid(/^[\w.-]+\/[\w.-]+$/.test(args.repository) && ID.test(args.runId));
+  requireValid(
+    /^[\w.-]+\/[\w.-]+$/.test(args.repository) && ID.test(args.runId),
+    'INVALID_ARGUMENTS'
+  );
   const root = await realpath(workingTreeRoot(cwd));
   const [payloadPath, privateKeyPath, recordPath] = await Promise.all([
     resolveExternalFile(path.resolve(cwd, args.payloadPath), root),
@@ -236,15 +325,14 @@ async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     resolveExternalFile(path.resolve(cwd, args.recordPath), root),
   ]);
   const [payloadText, privateKeyPem, recordText] = await Promise.all([
-    readFile(payloadPath, 'utf8'),
-    readFile(privateKeyPath, 'utf8'),
-    readFile(recordPath, 'utf8'),
+    readInput(payloadPath),
+    readInput(privateKeyPath),
+    readInput(recordPath),
   ]);
-  const record = JSON.parse(recordText);
   return sign0062Admission({
     payloadText,
     privateKeyPem,
-    record,
+    record: parseJson(recordText, 'RECORD_KEYS_INVALID'),
     runId: args.runId,
     repository: args.repository,
     github: createGithubReader(args.repository),
@@ -255,8 +343,8 @@ async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main()
     .then((envelope) => process.stdout.write(`${envelope}\n`))
-    .catch(() => {
-      process.stderr.write(`${REFUSAL}\n`);
+    .catch((error) => {
+      process.stderr.write(`${REFUSAL}: ${refusalReason(error)}\n`);
       process.exitCode = 1;
     });
 }
