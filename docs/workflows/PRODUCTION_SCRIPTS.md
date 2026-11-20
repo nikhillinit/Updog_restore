@@ -415,20 +415,23 @@ entrypoint. Use the named workflow for production apply.
    open, the owner sets `production-schema` protection to the owner as its only
    required reviewer, allows self-review, keeps the existing protected-branch
    deployment policy unchanged, and disables administrator bypass (write (a));
-   read back the result. Create the route variables and production-target
-   secrets under write (c), only when each name is absent at environment and
-   repository scope, and read back each write as specified by ADR-116. Keep
-   actuals pilot activation on its existing separate route.
+   read back the result. Under write (c), create the route variables, including
+   `SCHEMA_0062_RECOVERY_PUBLIC_KEY`, and production-target secrets only for
+   names absent at both environment and repository scope. Read back each write
+   and follow ADR-116's reuse rules for existing configuration. Keep actuals
+   pilot activation on its existing separate route.
 2. Separately dispatch `current-forecast-neon-rehearsal.yml` mode
    `journaled-0062` on that SHA. Match the configured
    `SCHEMA_0062_REHEARSAL_PROJECT_ID`, `SCHEMA_0062_REHEARSAL_PARENT_BRANCH_ID`,
    and `SCHEMA_0062_REHEARSAL_DATABASE_NAME`. Use a rehearsal project distinct
    from the production project and select `0061_durable_create_receipts` as
-   `expected_parent_migration_tail`. Require attempt 1 success from that exact
-   predecessor, proof of the 0062 transition, and the exact immutable rehearsal
-   artifact and its digest. The apply gate requires the rehearsal to have
-   finished within 72 hours. Verify isolation and the authorized rehearsal
-   branch's cleanup outcome. This proves the rehearsal target's transition only.
+   `expected_parent_migration_tail`. Record the rehearsal run ID. When attempt 1
+   waits for `production-schema` review, approve that exact run as the owner
+   before waiting for success. Require proof of the 0062 transition from that
+   exact predecessor and verify the immutable rehearsal artifact and its digest.
+   The apply gate requires the rehearsal to have finished within 72 hours.
+   Verify isolation and the authorized rehearsal branch's cleanup outcome. This
+   proves the rehearsal target's transition only.
 3. Obtain recovery proof under the governing policy. Verify managed backup and
    PITR, a successful isolated restore within 72 hours, named custody roles, and
    isolation from preview and production side effects. Verify the protected
@@ -437,8 +440,8 @@ entrypoint. Use the named workflow for production apply.
    `PRODUCTION_SCHEMA_TARGET_FINGERPRINT`. Keep production provider references
    and credentials private. The owner checks the findings and evidence digests
    and keeps custody of the Ed25519 signing key outside the repository, GitHub,
-   and any CI-reachable store. Create the public key in
-   `SCHEMA_0062_RECOVERY_PUBLIC_KEY` under write (c), with value readback.
+   and any CI-reachable store. Read back `SCHEMA_0062_RECOVERY_PUBLIC_KEY` in
+   `production-schema` and confirm it matches the public half of that key.
 4. Establish a quiet window and bounded recovery plan. If prerequisites are
    ready, the owner separately dispatches `prod-schema-reconcile.yml` mode
    `apply-journaled-0062` from exact current `main` and obtains the waiting run

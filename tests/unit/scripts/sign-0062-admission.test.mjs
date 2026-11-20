@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { spawnSync } from 'node:child_process';
 import { createPublicKey, generateKeyPairSync, verify } from 'node:crypto';
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -366,13 +366,14 @@ describe('sign0062Admission', () => {
 });
 
 describe('sign-0062-admission CLI', () => {
-  it('keeps refusal output empty of synthetic identifiers for an input inside the repository', async () => {
+  it.each(['checkout', 'outside'])('refuses a repository input from %s', async (location) => {
     const inside = await mkdtemp(path.join(process.cwd(), '.tmp-sign0062-'));
     const outside = await mkdtemp(path.join(os.tmpdir(), 'sign0062-'));
     temporaryDirectories.push(inside, outside);
     const payloadPath = path.join(inside, 'payload.json');
     const privateKeyPath = path.join(outside, 'private.pem');
     const recordPath = path.join(outside, 'record.json');
+    const cwd = location === 'checkout' ? process.cwd() : await realpath(outside);
     await Promise.all([
       writeFile(payloadPath, '{}'),
       writeFile(privateKeyPath, 'synthetic-private-key', { mode: 0o600 }),
@@ -388,13 +389,13 @@ describe('sign-0062-admission CLI', () => {
         '--run-id',
         '987654321',
         '--payload',
-        payloadPath,
+        path.relative(cwd, payloadPath),
         '--private-key',
         privateKeyPath,
         '--record',
         recordPath,
       ],
-      { cwd: process.cwd(), encoding: 'utf8', timeout: 20_000 }
+      { cwd, encoding: 'utf8', timeout: 20_000 }
     );
 
     expect(result.status).toBe(1);
@@ -443,7 +444,10 @@ describe('sign-0062-admission CLI', () => {
     );
   });
 
-  it('refuses a missing input file without printing its path', async () => {
+  it.each([
+    ['refuses a missing input file without printing its path', true, 'INPUT_FILE_UNREADABLE'],
+    ['refuses before opening inputs if Git is unavailable', false, 'REPOSITORY_ROOT_UNRESOLVED'],
+  ])('%s', async (_name, gitAvailable, reason) => {
     const outside = await mkdtemp(path.join(os.tmpdir(), 'sign0062-'));
     temporaryDirectories.push(outside);
     const missingPath = path.join(outside, 'synthetic-missing-payload.json');
@@ -469,12 +473,17 @@ describe('sign-0062-admission CLI', () => {
         '--record',
         recordPath,
       ],
-      { cwd: process.cwd(), encoding: 'utf8', timeout: 20_000 }
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        env: gitAvailable ? process.env : { ...process.env, PATH: outside },
+        timeout: 20_000,
+      }
     );
 
     expect(result.status).toBe(1);
     expect(result.stdout).toBe('');
-    expect(result.stderr).toBe('0062 admission signing refused: INPUT_FILE_UNREADABLE\n');
+    expect(result.stderr).toBe(`0062 admission signing refused: ${reason}\n`);
     expect(result.stderr).not.toContain('synthetic-missing-payload');
   });
 

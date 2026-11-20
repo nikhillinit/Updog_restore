@@ -268,15 +268,17 @@ function parseArgs(argv) {
   };
 }
 
-function workingTreeRoot(cwd) {
+async function signerCheckoutRoot() {
   try {
-    return execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      cwd,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
+    const scriptPath = await realpath(fileURLToPath(import.meta.url));
+    const root = path.resolve(path.dirname(scriptPath), '../..');
+    execFileSync('git', ['--git-dir=.git', '--work-tree=.', 'rev-parse', '--show-toplevel'], {
+      cwd: root,
+      stdio: 'ignore',
+    });
+    return root;
   } catch {
-    return cwd;
+    throw new SigningRefusal('REPOSITORY_ROOT_UNRESOLVED');
   }
 }
 
@@ -318,7 +320,7 @@ async function main(argv = process.argv.slice(2), cwd = process.cwd()) {
     /^[\w.-]+\/[\w.-]+$/.test(args.repository) && ID.test(args.runId),
     'INVALID_ARGUMENTS'
   );
-  const root = await realpath(workingTreeRoot(cwd));
+  const root = await signerCheckoutRoot();
   const [payloadPath, privateKeyPath, recordPath] = await Promise.all([
     resolveExternalFile(path.resolve(cwd, args.payloadPath), root),
     resolveExternalFile(path.resolve(cwd, args.privateKeyPath), root, { privateKey: true }),
