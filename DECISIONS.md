@@ -14113,25 +14113,43 @@ mandate blocks any replacement without an explicit exception.
 2. For each use, the owner's explicit acceptance of the concurrent-writer
    overwrite risk replaces optimistic locking for that use's secret writes, at
    most three. Each write is followed by metadata readback. The exception covers
-   no other secret, variable, or provider setting.
+   no other secret, variable, or provider setting. Before `gh secret set`, each
+   attempt reserves and increments its writes-used slot and records a pending
+   result; interruption leaves an unknown result and consumed slot. The write
+   result is recorded independently of clipboard clearing. Each attempt also
+   records its token label, creation time, readback status, and provider-check
+   workflow run ID, run attempt, and result. Every post-write revocation
+   requires a recorded acknowledged write, a matching completed metadata
+   readback, and a fresh provider check dispatched after that readback for the
+   same write.
 3. Each use starts with the read-only check against the stored token; a `PASS`
    ends the use without a replacement. A created token whose plaintext is lost,
    or that the check refuses for a confirmed token reason, is revoked before
    another is created. A use permits at most three secret writes. There is never
    more than one unrevoked unused token. An ambiguous provider result never
-   leads to revocation. A use that stops after a write, including on a failed
-   revocation, stays open until it resumes at the check and completes every
-   outstanding revocation and its record.
+   leads to revocation. A failed or unknown write, or an absent, failed, or
+   mismatched readback, preserves both the created token and the token
+   previously stored by GitHub, blocks revocation, and never resets writes used.
+   A use that stops after a write stays open. It resumes at its earliest
+   incomplete recorded phase. A conclusively completed cleanup resumes directly
+   at its record. If any cleanup revocation is incomplete, failed, or unknown,
+   the provider check runs again before remaining revocation. That cleanup
+   recheck is `PASS`-only; any other result preserves the newly stored token and
+   every remaining token, and no revoke-and-recreate branch applies after
+   cleanup starts. A `PASS` then permits completing every outstanding revocation
+   and its record.
 4. A use completes only when the read-only workflow
    `production-provider-check.yml` reports `PASS` against the stored
    `Production` secrets and variables. On the owner's explicit instruction, one
    delegated local executor may dispatch that workflow from `main`. Only the
    owner approves its `Production` environment gate; the executor never approves
    a deployment or environment review.
-5. After the first `PASS` under this route, the owner revokes the original
-   Production project token and any token created by the 2026-11-02 ADR-110
-   attempt. This replaces ADR-110's rule to retain those two records. Later uses
-   revoke the token they replace after `PASS`.
+5. The private record marks cleanup started before its first revocation. The
+   initial stored-token `PASS` never supplies cleanup authority. After the first
+   eligible post-write `PASS`, the owner revokes the original Production project
+   token and any token created by the 2026-11-02 ADR-110 attempt. This replaces
+   ADR-110's rule to retain those two records. Later uses revoke the token they
+   replace after an eligible post-write `PASS`.
 6. The route's inventory step replaces only the token inventory and
    original-token record readings of the F_1.3.7 readings (F_1.3.8 G2). The
    worker readings and the access-anomaly review remain owner readings.

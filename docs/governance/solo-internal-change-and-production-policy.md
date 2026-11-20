@@ -140,16 +140,34 @@ concurrent-writer overwrite risk replaces optimistic locking only for that use's
 `RAILWAY_TOKEN` writes, at most three. Each write is followed by metadata
 readback; this exception covers no other secret, variable, or provider setting.
 
+Each attempt reserves and increments its writes-used slot before `gh secret set`
+and records a pending result, so interruption cannot restore the budget or erase
+an unknown outcome. The write result is recorded independently of clipboard
+clearing. Each attempt also records its token label, creation time, readback
+status, and provider-check workflow run ID, run attempt, and result. Only an
+acknowledged write may proceed to a matching completed readback and then a fresh
+provider check dispatched for that same write. Every post-write revocation
+requires all three records. A failed or unknown write, or an absent, failed, or
+mismatched readback, preserves both the created token and the token previously
+stored by GitHub, blocks revocation, and never resets writes used.
+
 If a new token's plaintext is lost before writing, revoke it before another
 creation. After a write, revoke a token before another creation only when the
 check reports a confirmed token reason (`RAILWAY_TOKEN_REJECTED`,
 `RAILWAY_TOKEN_SCOPE`, or `RAILWAY_TOKEN_VALUE`). `RAILWAY_TOKEN_UNCONFIRMED`,
 `PROVIDER_UNREACHABLE`, and other ambiguous results never lead to revocation. A
 use that stops after a write stays open until its private record and required
-revocations are complete; it resumes at the check against the stored token.
-Completion requires `PASS`. After `PASS`, revoke the token this use replaced; on
-the first use, also revoke the original Production project token and any token
-created by the 2026-11-02 ADR-110 attempt.
+revocations are complete. It resumes at its earliest incomplete recorded phase;
+a conclusively completed cleanup resumes directly at its private record. If any
+cleanup revocation is incomplete, failed, or unknown, the same-write provider
+check runs again before remaining revocation. That cleanup recheck is
+`PASS`-only: any other result preserves the newly stored token and every
+remaining token, and no revoke-and-recreate branch applies after cleanup starts.
+The private record marks cleanup started before its first revocation. The
+initial stored-token check never supplies cleanup authority. Completion requires
+an eligible post-write `PASS`. After that `PASS`, revoke the token this use
+replaced; on the first use, also revoke the original Production project token
+and any token created by the 2026-11-02 ADR-110 attempt.
 
 The provider check is evidence, not authorization. This route authorizes no
 deployment, promotion, or other provider, database, or credential change.

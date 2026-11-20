@@ -191,7 +191,7 @@ function recordingProviderFetch(override) {
   return {
     requests,
     fetchImpl: async (url, options) => {
-      requests.push([url, options.body ?? null]);
+      requests.push({ url, body: options.body ?? null, redirect: options.redirect });
       const response = await override?.(url, options, baseFetch);
       return response === undefined ? baseFetch(url, options) : response;
     },
@@ -791,6 +791,7 @@ describe('read-only provider check', () => {
     });
     expect(check.requests).toEqual(capture.requests);
     expect(check.requests).toHaveLength(4);
+    expect(check.requests.every(({ redirect }) => redirect === 'error')).toBe(true);
   });
 
   it('classifies a thrown fetch and HTTP 503 as unreachable', async () => {
@@ -905,6 +906,21 @@ describe('read-only provider check', () => {
     }
   );
 
+  it('accepts an explicit Railway denial with a null token identity', async () => {
+    const fetch = recordingProviderFetch((url, options) =>
+      isTokenContextRequest(url, options)
+        ? tokenContextResponse({
+            data: { projectToken: null },
+            errors: [{ extensions: { code: 'FORBIDDEN' } }],
+          })
+        : undefined
+    );
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'RAILWAY_TOKEN_REJECTED' });
+    expect(fetch.requests).toHaveLength(3);
+  });
+
   it.each([
     [
       'HTTP 200 internal server error',
@@ -926,6 +942,7 @@ describe('read-only provider check', () => {
         ],
       },
     ],
+    ['denial with malformed data', { data: [], errors: [{ extensions: { code: 'FORBIDDEN' } }] }],
     ['non-array errors', { errors: 'UNAUTHENTICATED' }],
     ['errors without codes', { errors: [{ message: 'synthetic error' }] }],
     ['missing project ID', { data: { projectToken: { project: {}, environment: { id: 'railway-environment' } } } }],
@@ -940,6 +957,80 @@ describe('read-only provider check', () => {
       checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
     ).resolves.toEqual({ ok: false, failureClass: 'RAILWAY_TOKEN_UNCONFIRMED' });
     expect(fetch.requests).toHaveLength(3);
+  });
+
+  it.each([
+    ['blank project ID', '', 'railway-environment', undefined],
+    ['blank environment ID', 'railway-project', '', undefined],
+    ['whitespace-only project ID', '  ', 'railway-environment', undefined],
+    ['padded environment ID', 'railway-project', ' railway-environment ', undefined],
+    ['errors object', 'railway-project', 'railway-environment', { message: 'synthetic error' }],
+    ['null errors', 'railway-project', 'railway-environment', null],
+    [
+      'conflicting denial',
+      'railway-project',
+      'railway-environment',
+      [{ extensions: { code: 'FORBIDDEN' } }],
+    ],
+  ])(
+    'stops before topology when the token context has %s',
+    async (_label, projectId, environmentId, errors) => {
+      const fetch = recordingProviderFetch((url, options) =>
+        isTokenContextRequest(url, options)
+          ? tokenContextResponse({
+              errors,
+              data: {
+                projectToken: { project: { id: projectId }, environment: { id: environmentId } },
+              },
+            })
+          : undefined
+      );
+      await expect(
+        checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+      ).resolves.toEqual({ ok: false, failureClass: 'RAILWAY_TOKEN_UNCONFIRMED' });
+      expect(fetch.requests).toHaveLength(3);
+    }
+  );
+
+  it.each([
+    ['matching scope', 'railway-environment'],
+    ['mismatched scope', 'synthetic-other-environment'],
+  ])('treats malformed topology errors as unconfirmed with %s', async (_label, environmentId) => {
+    const fetch = recordingProviderFetch(async (url, options, baseFetch) => {
+      if (!url.includes('backboard.railway.com')) return undefined;
+      if (isTokenContextRequest(url, options)) {
+        return tokenContextResponse({
+          data: {
+            projectToken: {
+              project: { id: 'railway-project' },
+              environment: { id: environmentId },
+            },
+          },
+        });
+      }
+      const response = await baseFetch(url, options);
+      return providerJsonResponse(200, {
+        ...(await response.json()),
+        errors: { message: 'synthetic error' },
+      });
+    });
+    const environment = providerEnvironment();
+    await expect(checkProviders({ environment, fetchImpl: fetch.fetchImpl })).resolves.toEqual({
+      ok: false,
+      failureClass: 'RAILWAY_TOKEN_UNCONFIRMED',
+    });
+    expect(fetch.requests).toHaveLength(4);
+    await expect(
+      captureProviderBaseline({
+        baselineMainSha: BASELINE_MAIN_SHA,
+        plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+        plannedPrNumber: PLANNED_PR_NUMBER,
+        planPath: PLAN_PATH,
+        planSha256: PLAN_SHA256,
+        environment,
+        fetchImpl: fetch.fetchImpl,
+      })
+    ).rejects.toThrow('Railway topology errors are malformed');
   });
 
   it('accepts an empty errors array with valid IDs, exactly as the capture does', async () => {
@@ -969,6 +1060,27 @@ describe('read-only provider check', () => {
       checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
     ).resolves.toEqual({ ok: false, failureClass: 'RAILWAY_TOKEN_UNCONFIRMED' });
     expect(fetch.requests).toHaveLength(3);
+  });
+
+  it('treats a topology redirect as unreachable even with a confirmed scope mismatch', async () => {
+    const fetch = recordingProviderFetch((url, options) => {
+      if (!url.includes('backboard.railway.com')) return undefined;
+      if (isTokenContextRequest(url, options)) {
+        return tokenContextResponse({
+          data: {
+            projectToken: {
+              project: { id: 'railway-project' },
+              environment: { id: 'synthetic-other-environment' },
+            },
+          },
+        });
+      }
+      return providerJsonResponse(307, {});
+    });
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'PROVIDER_UNREACHABLE' });
+    expect(fetch.requests).toHaveLength(4);
   });
 
   it('reports token scope mismatch without issuing an extra request', async () => {

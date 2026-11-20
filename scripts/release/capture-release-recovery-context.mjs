@@ -60,18 +60,13 @@ function fail(message, { transport = false, status } = {}) {
 // Only RAILWAY_TOKEN_REJECTED confirms a token refusal; ambiguous results never do.
 function classifyProviderFailure(error, phase, scopeMismatch = false) {
   const status = error?.status;
-  const unreachable =
-    !Number.isInteger(status) ||
-    status < 100 ||
-    status === 429 ||
-    status >= 500 ||
-    (status >= 200 && status < 300);
+  const unreachable = !Number.isInteger(status) || status < 400 || status === 429 || status >= 500;
   let failureClass;
   if (phase === 'configuration') failureClass = 'CONFIGURATION';
   else if (phase === 'railway-token-value') failureClass = 'RAILWAY_TOKEN_VALUE';
   else if (phase === 'vercel-identity') failureClass = 'VERCEL_IDENTITY';
   else if (phase === 'railway-token-denial') failureClass = 'RAILWAY_TOKEN_REJECTED';
-  else if (phase === 'railway-token-body') failureClass = 'RAILWAY_TOKEN_UNCONFIRMED';
+  else if (phase === 'railway-evidence') failureClass = 'RAILWAY_TOKEN_UNCONFIRMED';
   else if (phase === 'vercel-request') {
     failureClass = unreachable ? 'PROVIDER_UNREACHABLE' : 'VERCEL_REJECTED';
   } else if (phase === 'railway-token-request') {
@@ -100,6 +95,10 @@ function isRailwayTokenDenial(errors) {
     errors.length > 0 &&
     errors.every((entry) => RAILWAY_TOKEN_DENIAL_CODES.includes(entry?.extensions?.code))
   );
+}
+
+function hasMalformedRailwayErrors(errors) {
+  return errors !== undefined && !Array.isArray(errors);
 }
 
 function plainObject(value, label) {
@@ -426,6 +425,7 @@ async function responseJson(fetchImpl, url, options, label) {
   try {
     response = await fetchImpl(url, {
       ...options,
+      redirect: 'error',
       signal: globalThis.AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     });
   } catch {
@@ -553,25 +553,35 @@ export async function readProviderIdentity({ environment = process.env, fetchImp
   } catch (error) {
     throw classifyProviderFailure(error, 'railway-token-request');
   }
-  let projectId;
-  let environmentId;
-  let scopeMismatch = false;
+  const tokenData = token?.data;
+  const projectToken = tokenData?.projectToken;
+  const projectId = projectToken?.project?.id;
+  const environmentId = projectToken?.environment?.id;
   try {
-    projectId = token?.data?.projectToken?.project?.id;
-    environmentId = token?.data?.projectToken?.environment?.id;
-    if (token?.errors?.length || typeof projectId !== 'string' || typeof environmentId !== 'string') {
+    if (
+      hasMalformedRailwayErrors(token?.errors) ||
+      token?.errors?.length ||
+      typeof projectId !== 'string' ||
+      !IDENTIFIER.test(projectId) ||
+      typeof environmentId !== 'string' ||
+      !IDENTIFIER.test(environmentId)
+    ) {
       fail('Railway token context is malformed');
     }
-    // Comparison only: verifyRailwayTopology refuses this mismatch after the next request.
-    scopeMismatch =
-      projectId !== expected.railwayProjectId ||
-      environmentId !== expected.railwayEnvironmentId;
   } catch (error) {
+    const hasDenialData =
+      tokenData == null ||
+      (typeof tokenData === 'object' && !Array.isArray(tokenData) && projectToken === null);
     throw classifyProviderFailure(
       error,
-      isRailwayTokenDenial(token?.errors) ? 'railway-token-denial' : 'railway-token-body'
+      hasDenialData && isRailwayTokenDenial(token?.errors)
+        ? 'railway-token-denial'
+        : 'railway-evidence'
     );
   }
+  // Comparison only: verifyRailwayTopology refuses this mismatch after the next request.
+  const scopeMismatch =
+    projectId !== expected.railwayProjectId || environmentId !== expected.railwayEnvironmentId;
   let control;
   try {
     control = await responseJson(
@@ -591,8 +601,12 @@ export async function readProviderIdentity({ environment = process.env, fetchImp
   } catch (error) {
     throw classifyProviderFailure(error, 'railway-topology-request', scopeMismatch);
   }
+  const malformedTopologyErrors = hasMalformedRailwayErrors(control?.errors);
   let provider;
   try {
+    if (malformedTopologyErrors) {
+      fail('Railway topology errors are malformed');
+    }
     const railwayResponse = {
       data: {
         projectId,
@@ -636,7 +650,11 @@ export async function readProviderIdentity({ environment = process.env, fetchImp
       },
     };
   } catch (error) {
-    throw classifyProviderFailure(error, 'railway-topology', scopeMismatch);
+    throw classifyProviderFailure(
+      error,
+      malformedTopologyErrors ? 'railway-evidence' : 'railway-topology',
+      scopeMismatch
+    );
   }
   return { expectedIdentity: expected, providerIdentity: provider };
 }
