@@ -13863,8 +13863,10 @@ production credential rotation stays in force.
 
 **Date:** 2026-11-18
 
-**Status:** Proposed. Requires explicit owner ratification and protected-main
-source admission. No current production action is authorized.
+**Status:** Proposed. ADR-115 takes effect only as amended by ADR-116, on
+ADR-116's explicit owner ratification and protected-main source admission.
+Requires explicit owner ratification and protected-main source admission. No
+current production action is authorized.
 
 ### Context
 
@@ -13925,6 +13927,118 @@ own governed decision.
   https://github.com/nikhillinit/Updog_restore/actions/runs/36642928665
 [adr115-onboarding-merge]:
   https://github.com/nikhillinit/Updog_restore/pull/1708
+
+## ADR-116: Solo-Operator Ratification of ADR-115 for Migration 0062
+
+**Date:** Set on owner ratification.
+
+**Status:** Proposed. Takes effect only with explicit owner ratification and
+protected-main admission of the matching policy amendment, procedure,
+admission-script change, and tests in one pull request. No production action is
+authorized by this entry.
+
+**Context.** ADR-115 (Proposed) admits a forward route for the landed 0062 SQL
+and manifest 39 under the full production schema recovery floor. It adds three
+independence requirements: approval of the apply run through `production-schema`
+by a GitHub user other than the dispatching owner
+(`assert0062IndependentApproval`), review of the recovery evidence by an
+independent reviewer, and custody of the Ed25519 signing key by that reviewer.
+This platform has one owner. No second person can serve as reviewer or
+custodian. A second GitHub account controlled by the owner would satisfy the
+code check while defeating its purpose, so it is rejected. Every release from
+current `main` must apply 0062 first: releases dispatch only on exact live
+`main`, and the release schema audit refuses any receipt but the exact 0062
+receipt once manifest 39 exists. Reverting #1708 instead would need its own
+ADR-103 rollback exception, would break the 0062 runner tests that #1710 added,
+would need caller analysis for the shared logging, RLS, idempotency, and
+retention code #1708 touched, and would create two source transitions.
+
+**Decision.**
+
+1. Ratify ADR-115 with only the substitutions in items 2 to 4. All other ADR-115
+   text and the policy's 0062 section stand.
+2. Approval. The apply run requires an explicit `approved` environment review
+   for `production-schema`, recorded on that exact run by the repository owner's
+   account ID; the dispatching actor must also be the owner (unchanged). This is
+   a deliberate pause-and-confirm checkpoint that holds the run while the owner
+   binds the admission to its run ID. It is not independent approval. Any other
+   reviewer, state, or environment, or an absent record, refuses.
+3. Review and key custody. The owner performs the recovery-evidence review that
+   ADR-115 assigns to an independent reviewer, and holds the Ed25519 signing key
+   outside the repository, GitHub, and any CI-reachable store. On the owner's
+   explicit instruction for one named apply run, one delegated local executor
+   may run the signing step with `scripts/release/sign-0062-admission.mjs`. The
+   owner remains the sole authority issuer; the executor may not create, rotate,
+   export, or copy the key, and its instruction covers no other run. The
+   signature binds the repository, candidate, apply run, target fingerprint,
+   production and restore targets, recovery-evidence digests, and rehearsal
+   artifact. It does not attest independence. Named custody roles remain
+   required; each may name the owner.
+4. Named configuration writes, for this route only, each performed by the owner
+   and each followed by a readback:
+   - (a) At each window open: set `production-schema` protection to the owner as
+     the only required reviewer, self-review allowed, the existing
+     protected-branch deployment policy unchanged, and administrator bypass
+     disabled.
+   - (b) At each window close, after the apply's terminal outcome or on
+     abandonment: restore `production-schema` to the protection observed before
+     (a). A later window repeats (a) and (b) as a new pair. It reuses the
+     existing key, every variable whose readback matches the private value
+     record, and every secret whose name the readback lists, and creates under
+     (c) only the names the readback shows absent; the same rule resumes a set
+     of writes (c) that stopped partway. Secret values cannot be read back; the
+     apply's live endpoint, branch, and fingerprint checks refuse before DDL if
+     a stored secret differs.
+   - (c) Create-only `production-schema` configuration: the variables
+     `SCHEMA_0062_RECOVERY_PUBLIC_KEY`, `SCHEMA_0062_REHEARSAL_PROJECT_ID`,
+     `SCHEMA_0062_REHEARSAL_PARENT_BRANCH_ID`, and
+     `SCHEMA_0062_REHEARSAL_DATABASE_NAME`; and the secrets
+     `ACTUALS_PREFLIGHT_NEON_PROJECT_ID`, `ACTUALS_PREFLIGHT_NEON_BRANCH_ID`,
+     `ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID`, `PRODUCTION_DATABASE_NAME`, and
+     `ACTUALS_PREFLIGHT_DATABASE_ROLE`, which are secrets so that public run
+     logs never print them. Before each write, a name check stops when the name
+     already exists as a variable or secret at environment or repository scope;
+     changing an existing value needs its own decision. GitHub offers no
+     create-only secret write, so each secret write uses the REST call directly
+     and records its status: 201 means created; 204 means a value already
+     existed and was replaced, which stops the window for a separate decision.
+     Whether the variable create call refuses an existing name is undocumented,
+     so each variable write is followed by a value readback.
+   - (d) One write of the `SCHEMA_0062_ADMISSION` secret per apply run, while
+     that run waits for approval.
+
+   GitHub's environment and secret APIs establish no conditional-update
+   contract, as ADR-110 found for one secret write. For writes (a), (b), and
+   (d), and the five secret writes in (c), the owner's explicit acceptance of
+   the concurrent-writer overwrite risk replaces the optimistic-locking mandate.
+   A readback that does not show the intended state stops the window. The four
+   variable writes in (c) rely on the name check and the value readback instead.
+   Nothing here extends to any other environment, secret, variable, or provider
+   write.
+
+5. Unchanged: managed backup/PITR; an isolated restore at most 72 hours old with
+   named custody and preview/restore isolation; an exact-SHA, attempt-1,
+   same-actor isolated rehearsal completed at most 72 hours earlier, in a Neon
+   project distinct from production; a production-parented restore reference and
+   an admission review each at most 30 minutes old; live protected source,
+   provider target, and restore reference revalidated under the reconcile lock
+   before DDL; one execution from the wholly absent state or a zero-write result
+   from the exact complete state; refusal of partial, inconsistent, unknown, or
+   newer states; no rerun. An ADR-103-style owner confirmation alone still does
+   not satisfy these checks.
+6. The approval check and its refusal texts are renamed so that no surface
+   claims independence.
+
+**Consequences.** One person can dispatch, approve, sign or instruct signing,
+and apply. A compromised owner account, or an agent session that holds the key
+while signing, could complete the route. Exact-SHA binding, run-bound
+signatures, the 30-minute and 72-hour windows, the window-only reviewer rule,
+readbacks, and refusal on ambiguity limit such a compromise to the pinned 0062
+bytes, on the fingerprinted target, once. Delegated signing is weaker evidence
+of personal review than owner signing. Outside the window `production-schema`
+has no reviewer rule, so an `apply-journaled-0062` dispatch then refuses for
+lack of an approval record. Revisit when a second person gains production access
+(governing policy, "Revisit").
 
 ## ADR-117: Production Vercel Authentication Covers All Deployments
 

@@ -295,16 +295,27 @@ outside the admitted scope.
 The existing production schema recovery floor applies in full. Require managed
 backup/PITR, a fresh successful isolated restore, named custody, and
 preview/restore isolation. Before apply, require a successful attempt-1 isolated
-rehearsal at the exact current SHA and independent verification of its immutable
-artifact. Bind independently reviewed and signed recovery evidence to that same
-candidate, the exact production target fingerprint, and the intended apply run.
-Before that run may proceed, require approval through the protected
-`production-schema` environment and verification against a separately
-provisioned reviewer public key. Keep the signing key under independent reviewer
-custody. Under the reconcile lock, revalidate live protected source, exact
-provider target, and the short-lived restore reference immediately before DDL.
-Any unavailable, stale, or conflicting proof blocks the action before mutation.
-An ADR-103-style owner confirmation alone does not satisfy these checks.
+rehearsal at the exact current SHA and verification of its immutable artifact
+digest by the apply route. Bind owner-reviewed and signed recovery evidence
+(ADR-116) to that same candidate, the exact production target fingerprint, and
+the intended apply run. Before that run may proceed, require the owner's
+explicit approval of that exact run through the protected `production-schema`
+environment and verification against the provisioned public key; keep the
+signing key under owner custody outside the repository, GitHub, and any
+CI-reachable store; one delegated local executor may sign only on the owner's
+explicit instruction for that run (ADR-116). Under the reconcile lock,
+revalidate live protected source, exact provider target, and the short-lived
+restore reference immediately before DDL. Any unavailable, stale, or conflicting
+proof blocks the action before mutation. An ADR-103-style owner confirmation
+alone does not satisfy these checks. ADR-116 admits, for this route only, the
+owner-performed `production-schema` protection writes at window open and close,
+the create-only route variables and production-target secrets, and one
+`SCHEMA_0062_ADMISSION` write per apply run; for the protection writes, the five
+production-target secret writes, and the admission secret writes only, the
+owner's explicit acceptance of the concurrent-writer risk replaces the
+optimistic-locking requirement; each write is read back, and a production-target
+secret write that reports an update instead of a creation stops for a separate
+decision.
 
 Admission grants source authority only. Neither rehearsal, apply receipt, nor
 audit supplies release or pilot-activation authority. Full release and its
@@ -433,7 +444,10 @@ Precedence rules:
   gates. ADR-112 separately permits one delegated local executor for its exact
   Git-repository disconnect, after explicit concurrent-writer risk acceptance
   and satisfaction of that route's gates. These exceptions do not change the
-  issuer: no agent, plan, or artifact self-authorizes.
+  issuer: no agent, plan, or artifact self-authorizes. ADR-116 permits one
+  delegated local executor to run only the 0062 admission signing step, on the
+  owner's explicit instruction for one named apply run, without changing the
+  issuer.
 - Provider coupling: merge to `main` may causally trigger provider deployment
   under current topology (ADR-075). That coupling is a topology fact, not an
   authorization; a merge that would mutate production is production-affecting

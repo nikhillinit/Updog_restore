@@ -395,12 +395,13 @@ mutation. A lock not granted within 10 minutes (the apply's
 
 ## Forward journaled schema apply for migration 0062 (ADR-115)
 
-This procedure is proposed until owner ratification and source admission under
-the governing policy. The already merged 0062 migration and manifest 39 exceed
-the old route's tail guard. The proposed forward path addresses only those
-landed bytes after source admission. The ADR-103 apply receipt remains evidence
-for its exact 0050-0061 source. ADR-103 full release closeout remains a separate
-outcome, and the freeze stays in place for additional migrations and manifests.
+This procedure applies after owner ratification as amended by ADR-116 and source
+admission under the governing policy. The already merged 0062 migration and
+manifest 39 exceed the old route's tail guard. The proposed forward path
+addresses only those landed bytes after source admission. The ADR-103 apply
+receipt remains evidence for its exact 0050-0061 source. ADR-103 full release
+closeout remains a separate outcome, and the freeze stays in place for
+additional migrations and manifests.
 
 The generic CLI in `scripts/run-journaled-0062-migration.mjs` is read-only. The
 production workflow uses the guarded
@@ -410,44 +411,68 @@ entrypoint. Use the named workflow for production apply.
 ### Owner sequence after source admission
 
 1. Refresh protected `main` and confirm the admitted route, passing exact-head
-   checks, unchanged 0062 SQL and manifest 39, and no newer tail. Verify the
-   `production-schema` environment has a required reviewer who can hold the
-   exact run pending approval. If that protection is missing, stop and scope its
-   configuration as a separate governed owner action. Keep actuals pilot
-   activation on its existing separate route.
+   checks, unchanged 0062 SQL and manifest 39, and no newer tail. At window
+   open, the owner sets `production-schema` protection to the owner as its only
+   required reviewer, allows self-review, keeps the existing protected-branch
+   deployment policy unchanged, and disables administrator bypass (write (a));
+   read back the result. Under write (c), create the route variables, including
+   `SCHEMA_0062_RECOVERY_PUBLIC_KEY`, and production-target secrets only for
+   names absent at both environment and repository scope. Read back each write
+   and follow ADR-116's reuse rules for existing configuration. Keep actuals
+   pilot activation on its existing separate route.
 2. Separately dispatch `current-forecast-neon-rehearsal.yml` mode
    `journaled-0062` on that SHA. Match the configured
    `SCHEMA_0062_REHEARSAL_PROJECT_ID`, `SCHEMA_0062_REHEARSAL_PARENT_BRANCH_ID`,
    and `SCHEMA_0062_REHEARSAL_DATABASE_NAME`. Use a rehearsal project distinct
    from the production project and select `0061_durable_create_receipts` as
-   `expected_parent_migration_tail`. Require attempt 1 success from that exact
-   predecessor, proof of the 0062 transition, and the exact immutable rehearsal
-   artifact and its digest. The apply gate requires the rehearsal to have
-   finished within 72 hours. Verify isolation and the authorized rehearsal
-   branch's cleanup outcome. This proves the rehearsal target's transition only.
+   `expected_parent_migration_tail`. Record the rehearsal run ID. When attempt 1
+   waits for `production-schema` review, approve that exact run as the owner
+   before waiting for success. Require proof of the 0062 transition from that
+   exact predecessor and verify the immutable rehearsal artifact and its digest.
+   The apply gate requires the rehearsal to have finished within 72 hours.
+   Verify isolation and the authorized rehearsal branch's cleanup outcome. This
+   proves the rehearsal target's transition only.
 3. Obtain recovery proof under the governing policy. Verify managed backup and
    PITR, a successful isolated restore within 72 hours, named custody roles, and
    isolation from preview and production side effects. Verify the protected
    project, branch, direct endpoint, database, and role against the intended
    production target. Use the existing fingerprint recipe for
    `PRODUCTION_SCHEMA_TARGET_FINGERPRINT`. Keep production provider references
-   and credentials private. An independent reviewer checks the findings and
-   evidence digests and retains custody of the Ed25519 signing key. Provision
-   the separately verified public key in `SCHEMA_0062_RECOVERY_PUBLIC_KEY`
-   through the governed environment configuration path.
+   and credentials private. The owner checks the findings and evidence digests
+   and keeps custody of the Ed25519 signing key outside the repository, GitHub,
+   and any CI-reachable store. Read back `SCHEMA_0062_RECOVERY_PUBLIC_KEY` in
+   `production-schema` and confirm it matches the public half of that key.
 4. Establish a quiet window and bounded recovery plan. If prerequisites are
    ready, the owner separately dispatches `prod-schema-reconcile.yml` mode
    `apply-journaled-0062` from exact current `main` and obtains the waiting run
-   ID. Before the environment approver releases attempt 1, the independent
-   reviewer signs the admission for the exact repository, candidate, run,
-   production target fingerprint, rehearsal artifact, recovery evidence, and
-   current production-parented restore reference. Supply the signed envelope
-   through the protected `SCHEMA_0062_ADMISSION` secret. Both the admission
-   review and the restore reference must be at most 30 minutes old when checked.
-   The workflow verifies the signature and rehearsal archive, and checks live
-   protected source, provider target, and restore reference again under the
-   reconcile lock before DDL. Withhold approval when the gate, current provider
-   evidence, or reviewed binding is absent or stale.
+   ID. Before the owner approves attempt 1, the owner signs the admission for
+   the exact repository, candidate, run, production target fingerprint,
+   rehearsal artifact, recovery evidence, and current production-parented
+   restore reference. On the owner's explicit instruction for this named run,
+   one delegated local executor may perform only this signing step. Use
+   `scripts/release/sign-0062-admission.mjs` as the only envelope producer:
+
+   ```bash
+   node scripts/release/sign-0062-admission.mjs --repo <owner/name> --run-id <waiting-run-id> --payload <payload.json> --private-key <private-key.pem> --record <private-value-record.json>
+   ```
+
+   Keep all three input files outside the repository; the private-key file must
+   not be group- or world-readable. Authenticate `gh` as the repository owner
+   and set `NEON_API_KEY`. The helper prints only the envelope to stdout on
+   success and nothing to stdout on refusal. A refusal writes one stderr line
+   with a fixed reason code or fixed admission-check text, never identifiers,
+   values, paths, or key material. Its self-verification must pass before the
+   owner writes the envelope once to the protected `SCHEMA_0062_ADMISSION`
+   secret (write (d)) and approves the run. Both the admission review and the
+   restore reference must be at most 30 minutes old when checked. Approve no
+   later than 20 minutes after the restore reference was created: the workflow
+   checks both bounds after setup, retention check, and pre-apply audit, then
+   again under the reconcile lock. The workflow verifies the signature and
+   rehearsal archive, and checks live protected source, provider target, and
+   restore reference again under the reconcile lock before DDL. Withhold
+   approval when the gate, current provider evidence, or reviewed binding is
+   absent or stale.
+
 5. Verify the locked ledger and catalog readback. An exact complete 0062 state,
    all 39 manifests clean, and a valid attempt-1 receipt establish the schema
    result. Keep the run ID, attempt, artifact ID, archive digest, receipt file
@@ -458,7 +483,11 @@ entrypoint. Use the named workflow for production apply.
    under the shared advisory lock before choosing a forward fix or separately
    authorized recovery. A failed post-commit audit cannot undo the transaction.
    GitHub reruns are refused.
-6. Prepare the governed release candidate and exact pre-merge baseline as
+6. At window close, after the apply reaches a terminal outcome or on
+   abandonment, the owner restores `production-schema` protection to the state
+   recorded before write (a) (write (b)) and reads back the result. A later
+   window repeats writes (a) and (b) as a new pair.
+7. Prepare the governed release candidate and exact pre-merge baseline as
    applicable, including current Railway credential and dependency evidence,
    canary caps and TTL, and pilot-off readback. Follow the existing production
    release sequence with the 0062 receipt, current policy evidence, fresh

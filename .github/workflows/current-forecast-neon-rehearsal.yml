@@ -68,7 +68,7 @@ jobs:
           ALLOWED_PROJECT_ID: ${{ vars.SCHEMA_0062_REHEARSAL_PROJECT_ID }}
           ALLOWED_PARENT_BRANCH_ID: ${{ vars.SCHEMA_0062_REHEARSAL_PARENT_BRANCH_ID }}
           ALLOWED_DATABASE_NAME: ${{ vars.SCHEMA_0062_REHEARSAL_DATABASE_NAME }}
-          PRODUCTION_PROJECT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_PROJECT_ID }}
+          PRODUCTION_PROJECT_ID: ${{ secrets.ACTUALS_PREFLIGHT_NEON_PROJECT_ID }}
         run: |
           set -euo pipefail
           test "$GITHUB_EVENT_NAME" = workflow_dispatch

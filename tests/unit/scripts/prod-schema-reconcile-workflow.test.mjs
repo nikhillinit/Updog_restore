@@ -457,6 +457,74 @@ if (stage) {
 });
 
 describe('prod-schema-reconcile workflow', () => {
+  it('limits five production target secrets and legacy vars to their approved steps', async () => {
+    const workflows = await Promise.all(
+      [
+        '.github/workflows/prod-schema-reconcile.yml',
+        '.github/workflows/current-forecast-neon-rehearsal.yml',
+      ].map(async (file) => ({ file, workflow: YAML.parse(await readFile(file, 'utf8')) }))
+    );
+    const names = [
+      'ACTUALS_PREFLIGHT_NEON_PROJECT_ID',
+      'ACTUALS_PREFLIGHT_NEON_BRANCH_ID',
+      'ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID',
+      'PRODUCTION_DATABASE_NAME',
+      'ACTUALS_PREFLIGHT_DATABASE_ROLE',
+    ];
+    for (const { file, workflow } of workflows) {
+      for (const [jobName, job] of Object.entries(workflow.jobs)) {
+        for (const step of job.steps ?? []) {
+          const serialized = JSON.stringify(step);
+          for (const name of names) {
+            if (serialized.includes(`secrets.${name}`)) {
+              expect([file, jobName, step.name], `unexpected secret reference ${name}`).toEqual(
+                file.endsWith('prod-schema-reconcile.yml')
+                  ? [
+                      '.github/workflows/prod-schema-reconcile.yml',
+                      'reconcile',
+                      'Apply additive-safe reconciliation',
+                    ]
+                  : [
+                      '.github/workflows/current-forecast-neon-rehearsal.yml',
+                      'rehearse',
+                      'Require owner 0062 rehearsal on isolated target',
+                    ]
+              );
+            }
+            if (serialized.includes(`vars.${name}`)) {
+              expect([file, step.name], `unexpected variable reference ${name}`).toEqual([
+                '.github/workflows/prod-schema-reconcile.yml',
+                expect.stringMatching(
+                  /^Evaluate action-specific actuals (draft|restatement) production prerequisites$/
+                ),
+              ]);
+            }
+          }
+        }
+      }
+      const outsideSteps = JSON.stringify({
+        ...workflow,
+        jobs: Object.fromEntries(
+          Object.entries(workflow.jobs).map(([jobName, job]) => [
+            jobName,
+            { ...job, steps: undefined },
+          ])
+        ),
+      });
+      for (const name of names) {
+        expect(outsideSteps, `${file} job- or workflow-level reference ${name}`).not.toMatch(
+          new RegExp(`(secrets|vars)\\.${name}\\b`)
+        );
+      }
+    }
+    const rehearsalStep = workflows[1].workflow.jobs.rehearse.steps.find(
+      (step) => step.name === 'Require owner 0062 rehearsal on isolated target'
+    );
+    expect(rehearsalStep?.env?.PRODUCTION_PROJECT_ID).toBe(
+      '${{ secrets.ACTUALS_PREFLIGHT_NEON_PROJECT_ID }}'
+    );
+  });
+
   it('binds each actuals verifier to the authenticated dispatch title and protected target inputs', async () => {
     const workflow = YAML.parse(
       await readFile('.github/workflows/prod-schema-reconcile.yml', 'utf8')
@@ -483,11 +551,33 @@ describe('prod-schema-reconcile workflow', () => {
         ACTUALS_PREFLIGHT_DATABASE_ROLE: '${{ vars.ACTUALS_PREFLIGHT_DATABASE_ROLE }}',
       });
       expect(step?.run).toContain(`scripts/release/actuals-${kind}-production-preflight.ts`);
-      expect(apply?.env).toMatchObject(step.env);
+      const secretNames = [
+        'ACTUALS_PREFLIGHT_NEON_PROJECT_ID',
+        'ACTUALS_PREFLIGHT_NEON_BRANCH_ID',
+        'ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID',
+        'PRODUCTION_DATABASE_NAME',
+        'ACTUALS_PREFLIGHT_DATABASE_ROLE',
+      ];
+      const sharedEnv = Object.fromEntries(
+        Object.entries(step.env).filter(([name]) => !secretNames.includes(name))
+      );
+      expect(apply?.env).toMatchObject(sharedEnv);
       expect(apply?.run).toContain(
         `reports/actuals-${kind}-preflight-result.json reports/actuals-${kind}-preapply-result.json`
       );
     }
+    expect(apply?.env).toMatchObject({
+      ACTUALS_PREFLIGHT_NEON_PROJECT_ID:
+        "${{ inputs.mode == 'apply-journaled-0062' && secrets.ACTUALS_PREFLIGHT_NEON_PROJECT_ID || '' }}",
+      ACTUALS_PREFLIGHT_NEON_BRANCH_ID:
+        "${{ inputs.mode == 'apply-journaled-0062' && secrets.ACTUALS_PREFLIGHT_NEON_BRANCH_ID || '' }}",
+      ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID:
+        "${{ inputs.mode == 'apply-journaled-0062' && secrets.ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID || '' }}",
+      PRODUCTION_DATABASE_NAME:
+        "${{ inputs.mode == 'apply-journaled-0062' && secrets.PRODUCTION_DATABASE_NAME || '' }}",
+      ACTUALS_PREFLIGHT_DATABASE_ROLE:
+        "${{ inputs.mode == 'apply-journaled-0062' && secrets.ACTUALS_PREFLIGHT_DATABASE_ROLE || '' }}",
+    });
   });
 
   it('verifies the exact 0062 archive and rejects legacy or contradictory evidence', async () => {
