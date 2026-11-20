@@ -22,6 +22,18 @@ const SUCCESSOR_TAG = '0062_vehicle_onboarding_commands';
 const JOURNALED_TAILS = new Set([...EXPECTED_TAILS, '0055_current_forecast_recompute_commands']);
 const JOURNALED_RUNNER = 'scripts/run-journaled-0050-0061-migrations.mjs';
 const READY_ENDPOINT_STATES = new Set(['active', 'idle']);
+const MIGRATION_TAGS_BY_LEDGER_CREATED_AT = new Map([
+  ['1785714000000', '0049_kpi_observations'],
+  ['1786059600000', '0053_g3_release_gate_hardening'],
+  ['1788235843534', '0055_current_forecast_recompute_commands'],
+  ['1788825600000', '0056_actuals_draft_revisions'],
+  ['1790380800000', '0061_durable_create_receipts'],
+  ['1793750400000', '0062_vehicle_onboarding_commands'],
+]);
+
+export function migrationTagForLedgerCreatedAt(value) {
+  return MIGRATION_TAGS_BY_LEDGER_CREATED_AT.get(String(value)) ?? 'unknown';
+}
 
 function required(value, label, pattern) {
   if (typeof value !== 'string' || !pattern.test(value)) throw new Error(`${label} is invalid`);
@@ -210,14 +222,7 @@ async function readMigrationTail(connectionString) {
     const ledger = await client.query(
       'SELECT created_at FROM public.drizzle_migrations ORDER BY created_at DESC LIMIT 1'
     );
-    const byWhen = new Map([
-      ['1785714000000', '0049_kpi_observations'],
-      ['1786059600000', '0053_g3_release_gate_hardening'],
-      ['1788235843534', '0055_current_forecast_recompute_commands'],
-      ['1788825600000', '0056_actuals_draft_revisions'],
-      ['1790380800000', '0061_durable_create_receipts'],
-    ]);
-    return byWhen.get(String(ledger.rows[0]?.created_at)) ?? 'unknown';
+    return migrationTagForLedgerCreatedAt(ledger.rows[0]?.created_at);
   } finally {
     await client.end();
   }

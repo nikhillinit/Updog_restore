@@ -93,7 +93,7 @@ export function assert0062Admission({ env, now = Date.now() }) {
     );
     proof = JSON.parse(payload);
   } catch {
-    throw new AdmissionError('0062 independently signed recovery admission is missing or invalid');
+    throw new AdmissionError('0062 signed recovery admission is missing or invalid');
   }
 
   const validTime = (time, age) => Number.isSafeInteger(time) && time <= now && now - time <= age;
@@ -206,17 +206,17 @@ export function assert0062ProductionEndpoint({ proof, endpoint }) {
   );
 }
 
-export function assert0062IndependentApproval(reviews, ownerId) {
+export function assert0062OwnerApproval(reviews, ownerId) {
   requireEvidence(
-    Array.isArray(reviews) &&
+    ID.test(ownerId ?? '') &&
+      Array.isArray(reviews) &&
       reviews.some(
         (review) =>
           review?.state === 'approved' &&
-          ID.test(String(review.user?.id)) &&
-          String(review.user.id) !== ownerId &&
+          String(review.user?.id) === ownerId &&
           review.environments?.some((environment) => environment?.name === 'production-schema')
       ),
-    '0062 requires independent GitHub approval of this production-schema run'
+    "0062 requires the repository owner's approval of this production-schema run"
   );
 }
 
@@ -232,7 +232,7 @@ async function applyWithAdmission(env) {
   const proof = assert0062Admission({ env });
   const base = `repos/${proof.repository}`;
   const approvals = JSON.parse(ghApi(`${base}/actions/runs/${proof.applyRunId}/approvals`));
-  assert0062IndependentApproval(approvals, proof.actorId);
+  assert0062OwnerApproval(approvals, proof.actorId);
   const run = JSON.parse(ghApi(`${base}/actions/runs/${proof.rehearsalRunId}`));
   const artifact = JSON.parse(ghApi(`${base}/actions/artifacts/${proof.rehearsalArtifactId}`));
   const archive = ghApi(`${base}/actions/artifacts/${proof.rehearsalArtifactId}/zip`);

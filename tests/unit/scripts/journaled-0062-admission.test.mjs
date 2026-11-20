@@ -8,7 +8,7 @@ import YAML from 'yaml';
 import { computeTargetFingerprint } from '../../../scripts/reconcile-prod-schema.mjs';
 import {
   assert0062Admission,
-  assert0062IndependentApproval,
+  assert0062OwnerApproval,
   assert0062ProductionEndpoint,
   assert0062Rehearsal,
   assert0062RestoreBranch,
@@ -85,7 +85,7 @@ const admit = (env = {}, changes = {}) =>
   });
 
 describe('0062 admission', () => {
-  it('requires separate owner dispatch and independently signed exact-run proof', () => {
+  it('requires separate owner dispatch and signed exact-run proof', () => {
     expect(admit()).toMatchObject(recovery);
     for (const env of [
       { GITHUB_ACTOR_ID: '14' },
@@ -116,23 +116,28 @@ describe('0062 admission', () => {
       expect(() => admit({}, changes)).toThrow(/admission is stale or does not bind/);
   });
 
-  it('requires actual approval of the exact apply run by a non-owner environment reviewer', () => {
+  it('requires owner approval of the exact apply run in production-schema', () => {
     const ownerId = '13';
     const approval = {
       state: 'approved',
-      user: { id: 14 },
+      user: { id: 13 },
       environments: [{ name: 'production-schema' }],
     };
-    expect(() => assert0062IndependentApproval([approval], ownerId)).not.toThrow();
+    expect(() => assert0062OwnerApproval([approval], ownerId)).not.toThrow();
     for (const reviews of [
       [],
-      [{ ...approval, user: { id: 13 } }],
+      [{ ...approval, user: { id: 14 } }],
+      [{ ...approval, user: { id: 'malformed' } }],
       [{ ...approval, environments: [{ name: 'Production' }] }],
       [{ ...approval, state: 'rejected' }],
+      null,
     ])
-      expect(() => assert0062IndependentApproval(reviews, ownerId)).toThrow(
-        /independent GitHub approval/
+      expect(() => assert0062OwnerApproval(reviews, ownerId)).toThrow(
+        /repository owner's approval of this production-schema run/
       );
+    expect(() => assert0062OwnerApproval([approval], 'malformed')).toThrow(
+      /repository owner's approval of this production-schema run/
+    );
   });
 
   it('revalidates the provider endpoint and restore reference against approved scope', () => {

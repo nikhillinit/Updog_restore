@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
 import {
   directHostFingerprint,
+  migrationTagForLedgerCreatedAt,
   rehearseCurrentForecastNeon,
   validateConnectionUri,
   validateRehearsalInput,
@@ -192,6 +193,19 @@ function run(overrides = {}) {
 }
 
 describe('Current Forecast Neon rehearsal', { retry: 0 }, () => {
+  it('maps migration ledger timestamps from the journal and reports unknown values', async () => {
+    const journal = JSON.parse(await readFile('migrations/meta/_journal.json', 'utf8'));
+    const whenFor = (tag) => journal.entries.find((entry) => entry.tag === tag)?.when;
+
+    expect(migrationTagForLedgerCreatedAt(whenFor('0061_durable_create_receipts'))).toBe(
+      '0061_durable_create_receipts'
+    );
+    expect(migrationTagForLedgerCreatedAt(whenFor('0062_vehicle_onboarding_commands'))).toBe(
+      '0062_vehicle_onboarding_commands'
+    );
+    expect(migrationTagForLedgerCreatedAt('unknown-ledger-value')).toBe('unknown');
+  });
+
   it('keeps the workflow manual, protected, first-attempt-only, with artifacts restricted to 0062', async () => {
     const workflow = await readFile(
       '.github/workflows/current-forecast-neon-rehearsal.yml',
