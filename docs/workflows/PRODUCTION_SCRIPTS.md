@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-11-18
+last_updated: 2026-11-20
 ---
 
 # Canonical Production-Action Procedure
@@ -1142,6 +1142,83 @@ budget, then stop; an expired budget does not start a new reconciliation window.
   runtime/Redis probe, token revocation/deletion, or Neon action is included. A
   fresh receipt cannot reset a consumed budget. Any further credential attempt
   requires a new owner-scoped recovery decision under the then-current policy.
+
+## Railway production token replacement (ADR-118)
+
+This standing owner-run route is available only after ADR-118 and this procedure
+are admitted to protected `main`. Each use is a separate owner action. The token
+plaintext never enters an agent session, file, shell history, or the repository.
+The executor never approves a deployment or environment review.
+
+1. **Preconditions:** ADR-118 is admitted to protected `main`; the owner gives
+   explicit instruction for this use, including acceptance of the
+   concurrent-writer overwrite risk. Confirm no `release-production`,
+   `capture-release-baseline`, or `prod-schema-reconcile` run is queued or in
+   progress with `gh run list` for each workflow.
+2. **Check the stored token:** dispatch `production-provider-check.yml` from
+   `main`; the executor may dispatch on the owner's instruction. The owner
+   approves the `Production` environment gate.
+   - `PASS`: the stored token works. Stop; no replacement in this use. An open
+     use resumes at step 7 instead; see step 10.
+   - `RAILWAY_TOKEN_REJECTED`, `RAILWAY_TOKEN_SCOPE`, or `RAILWAY_TOKEN_VALUE`:
+     continue to step 3.
+   - `RAILWAY_TOKEN_UNCONFIRMED`: rerun at least five minutes later; if it
+     repeats, continue to step 3. This replaces the stored token but revokes
+     nothing until `PASS`.
+   - `PROVIDER_UNREACHABLE`: rerun later; do not continue on this result.
+   - Any other class: stop. The check cannot judge a new token until that repair
+     is planned and done separately.
+3. **Inventory:** the owner lists every project token on the Railway project's
+   token settings page and privately records each name, environment, and
+   creation date. Mark the token currently used by GitHub and, on the first use,
+   the original Production token and any token created on 2026-11-02. Read
+   `Production` secret metadata (names, `created_at`, `updated_at`); the
+   executor may perform this read.
+4. **Create:** create one project token for the Production environment named
+   `github-production-<YYYYMMDD>`; add a suffix for a later attempt on the same
+   day.
+5. **Write, then clear the clipboard:**
+
+   ```bash
+   pbpaste | gh secret set RAILWAY_TOKEN --env Production --repo <owner/name>
+   pbcopy < /dev/null
+   ```
+
+   Never paste the token anywhere else. If its plaintext is lost before the
+   write, revoke the new token and return to step 4. A use permits at most three
+   secret writes (the first and two recreations); the owner's acceptance of
+   overwrite risk for the use covers each, and every write is followed by
+   step 6. A failed or unknown write counts toward the three.
+
+6. **Readback:** verify `RAILWAY_TOKEN` `updated_at` is later than the step 4
+   time, `created_at` is unchanged, and every other `Production` secret's
+   metadata equals step 3.
+7. **Check the new token** as in step 2. Outcomes:
+   - `PASS`: continue.
+   - `RAILWAY_TOKEN_REJECTED`, `RAILWAY_TOKEN_SCOPE`, or `RAILWAY_TOKEN_VALUE`:
+     revoke the new token and return to step 4. When the use has no write left
+     under step 5, stop instead.
+   - `RAILWAY_TOKEN_UNCONFIRMED`: never revoke. Rerun at least five minutes
+     later; if it repeats, stop, keep the new token, and leave the use open
+     until a rerun gives `PASS` or a confirmed class.
+   - `PROVIDER_UNREACHABLE`: rerun the check; never revoke on this result.
+   - Any other class: the token is not the cause. Stop, keep the new token,
+     leave the use open, and plan the repair separately.
+8. **Revoke:** revoke the token this use replaced and, on the first use, the
+   original Production token and any token created on 2026-11-02. Reread the
+   token page: the new token is the only Production-environment token, apart
+   from tokens the owner chose at step 3 to keep, each recorded with a reason.
+9. **Record privately:** record times, token labels, and check run IDs and
+   results. Nothing goes in the repository. G1 in F_1.3.8 closes only when the
+   S8 capture authenticates to Railway. G2 worker readings and the
+   access-anomaly review remain separate owner readings and are not satisfied
+   here. Close the use only when this step is complete.
+10. **Open use:** a use that stopped after its first write and before step 9
+    stays open, with its step 3 inventory, writes used, and outstanding
+    revocations privately recorded. This includes a stop on a failed revocation
+    in step 8. Resume under the same acceptance or a renewed one at step 7
+    against the stored token, then complete outstanding step 8 revocations and
+    step 9. A new use cannot start while one is open.
 
 ## One-time Vercel Git-repository disconnect (ADR-112)
 

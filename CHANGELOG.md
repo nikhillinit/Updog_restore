@@ -24,6 +24,10 @@ and this project adheres to
 
 ### Governance (2026-11-20)
 
+- F_1.3.8 S2, ADR-118 (Proposed): owner-run Railway Production token replacement
+  route plus read-only `production-provider-check.yml` and the `check-providers`
+  subcommand with fixed failure classes; source admission only, no production
+  action authorized.
 - F_1.3.8 S3, ADR-116 (Proposed): solo-operator route for migration 0062. The
   0062 apply now requires the repository owner's `production-schema` approval of
   the exact run instead of a non-owner reviewer, and no surface claims

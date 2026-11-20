@@ -284,6 +284,43 @@ describe('production governance documentation routing', () => {
     expect(successor).not.toContain('independently reviewed');
   });
 
+  it('pins the proposed ADR-118 token replacement route and its authority limits', async () => {
+    const decisions = flattenWhitespace(await readRepositoryFile('DECISIONS.md'));
+    const policy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const guide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+
+    expect(decisions).toContain('## ADR-118: Owner-Run Railway Production Token Replacement');
+    expect(decisions).toContain(
+      '**Date:** Set on owner ratification. **Status:** Proposed. Takes effect only with explicit owner ratification and protected-main admission of the matching policy section, procedure, and check workflow.'
+    );
+    expect(decisions).toContain(
+      "For each use, the owner's explicit acceptance of the concurrent-writer overwrite risk replaces optimistic locking for that use's secret writes, at most three."
+    );
+    expect(decisions).toContain(
+      'Each use starts with the read-only check against the stored token; a `PASS` ends the use without a replacement.'
+    );
+    expect(decisions).toContain('A use permits at most three secret writes.');
+    expect(decisions).toContain('An ambiguous provider result never leads to revocation.');
+    expect(decisions).toContain('the executor never approves a deployment or environment review.');
+    expect(decisions).toContain(
+      'Its single action budget was consumed on 2026-11-02; any further Railway Production token replacement uses ADR-118 once ratified.'
+    );
+
+    expect(policy).toContain('## Railway production token replacement (ADR-118)');
+    expect(policy).toContain(
+      'This route authorizes no deployment, promotion, or other provider, database, or credential change.'
+    );
+    expect(policy).toContain(
+      "ADR-118 permits one delegated local executor to dispatch only the read-only provider check workflow `production-provider-check.yml` on the owner's explicit instruction; approval of its `Production` environment gate stays with the owner, and the issuer does not change."
+    );
+    expect(policy).toContain("This action's budget is consumed; later replacements use ADR-118.");
+
+    expect(guide).toContain('## Railway production token replacement (ADR-118)');
+    expect(guide).toContain(
+      '`RAILWAY_TOKEN_UNCONFIRMED`: never revoke. Rerun at least five minutes later; if it repeats, stop, keep the new token, and leave the use open until a rerun gives `PASS` or a confirmed class.'
+    );
+  });
+
   it('admits owner-run production user provisioning with its gates and procedure', async () => {
     const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
     const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
