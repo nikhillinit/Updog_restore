@@ -22,6 +22,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Governance (2026-11-20)
+
+- F_1.3.8 S3, ADR-116 (Proposed): solo-operator route for migration 0062. The
+  0062 apply now requires the repository owner's `production-schema` approval of
+  the exact run instead of a non-owner reviewer, and no surface claims
+  independence. New `scripts/release/sign-0062-admission.mjs` is the only
+  admission envelope producer; it verifies the envelope against the waiting run,
+  `production-schema` variables, a private value record, and live Neon reads
+  before printing it. The five production target identifiers move from `vars` to
+  mode-scoped `secrets` in the 0062 apply and rehearsal validation steps. The
+  rehearsal tail reader now maps the 0062 ledger value, which had made every
+  `journaled-0062` rehearsal fail. The governing policy and the 0062 procedure
+  are amended to match. Effective only on owner ratification and merge; no
+  production action is authorized.
+
 ### Security (2026-11-20)
 
 - F_1.3.9 production access posture gate. Both pre-promotion provider checks in

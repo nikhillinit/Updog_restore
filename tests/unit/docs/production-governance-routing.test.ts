@@ -245,6 +245,9 @@ describe('production governance documentation routing', () => {
 
     expect(decisions).toContain('## ADR-115: Forward Journaled Schema Apply for Migration 0062');
     expect(decisions).toContain(
+      "Proposed. ADR-115 takes effect only as amended by ADR-116, on ADR-116's explicit owner ratification and protected-main source admission."
+    );
+    expect(decisions).toContain(
       'Requires explicit owner ratification and protected-main source admission.'
     );
     const successor = policy
@@ -258,6 +261,27 @@ describe('production governance documentation routing', () => {
     expect(guide).toContain('the restore reference must be at most 30 minutes old');
     expect(guide).toContain('under the reconcile lock before DDL');
     expect(guide).toContain('the attempt-1 full release passes post-promotion smoke');
+  });
+
+  it('records ADR-116 owner controls without claiming independent approval', async () => {
+    const policy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const decisions = flattenWhitespace(await readRepositoryFile('DECISIONS.md'));
+    const successor = policy
+      .split('**Journaled schema successor for migration 0062 (ADR-115).**')[1]
+      ?.split('The owner-run route')[0];
+
+    expect(decisions).toContain(
+      '## ADR-116: Solo-Operator Ratification of ADR-115 for Migration 0062'
+    );
+    expect(decisions).toContain('It is not independent approval.');
+    expect(decisions).toContain('It does not attest independence.');
+    expect(decisions).toContain('Create-only `production-schema` configuration');
+    expect(decisions).toContain(
+      'Before each write, a name check stops when the name already exists as a variable or secret at environment or repository scope'
+    );
+    expect(decisions).toContain('One write of the `SCHEMA_0062_ADMISSION` secret per apply run');
+    expect(successor).not.toContain('independent reviewer custody');
+    expect(successor).not.toContain('independently reviewed');
   });
 
   it('admits owner-run production user provisioning with its gates and procedure', async () => {
