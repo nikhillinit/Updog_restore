@@ -20,6 +20,31 @@ const MAX_CROSS_PROBE_SKEW_MS = 15 * 60 * 1000;
 
 export { assertVercelCandidateHost, normalizeRailwayResponse, verifyRailwayTopology };
 
+export function verifyAccessPosture({ posture, canonicalHostname }) {
+  const invalid = () => fail('access posture is invalid');
+  if (!posture || typeof posture !== 'object' || Array.isArray(posture) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(posture))) invalid();
+  if (posture.deploymentType !== 'all' || typeof canonicalHostname !== 'string' ||
+      canonicalHostname.trim() === '' || !Array.isArray(posture.hostnames) ||
+      posture.hostnames.length === 0 || posture.hostnames.some((hostname) =>
+        typeof hostname !== 'string' || hostname.trim() === '')) invalid();
+  const canonical = canonicalHostname.toLowerCase();
+  const inventory = new Set(posture.hostnames);
+  if (inventory.size !== posture.hostnames.length || !inventory.has(canonical) ||
+      !Array.isArray(posture.probes) || posture.probes.length !== inventory.size) invalid();
+  const probed = new Set();
+  for (const probe of posture.probes) {
+    if (!probe || typeof probe !== 'object' || Array.isArray(probe) ||
+        !inventory.has(probe.hostname) || probed.has(probe.hostname)) invalid();
+    probed.add(probe.hostname);
+    if (probe.status !== 401 && !(
+      Number.isInteger(probe.status) && probe.status >= 300 && probe.status <= 399 &&
+      probe.redirectHost === 'vercel.com' && probe.redirectPathPrefix === '/sso-api'
+    )) invalid();
+  }
+  if (probed.size !== inventory.size) invalid();
+}
+
 function fail(message) {
   throw new Error(`Provider identity failed: ${message}`);
 }
@@ -244,6 +269,11 @@ async function main() {
   const expectedSha = args['expected-sha'];
   if (!args['expected-vercel-project-id']) {
     fail('--expected-vercel-project-id is required');
+  }
+  if (args['access-posture-file'] !== undefined) {
+    if (!args['canonical-hostname']) fail('--canonical-hostname is required');
+    const posture = await jsonFile(args['access-posture-file'], 'Access posture');
+    verifyAccessPosture({ posture, canonicalHostname: args['canonical-hostname'] });
   }
   const maxProbeAgeMinutes = args['max-probe-age-minutes'] === undefined
     ? DEFAULT_MAX_PROBE_AGE_MINUTES

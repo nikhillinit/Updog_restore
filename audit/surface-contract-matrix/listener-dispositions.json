@@ -47,8 +47,7 @@
         "text": "CMD [\"node\", \"dist/index.js\"]"
       }
     ],
-    "decision_status": "approved",
-    "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Dockerfile.railway and the active Railway worker manifests are unchanged. The seeder resets the legacy listener disposition to proposed. Its unchanged fingerprint supports retaining the existing non-product-tooling classification. This review covers the source classification."
+    "decision_status": "proposed"
   },
   {
     "candidate_path": "Dockerfile.simple",

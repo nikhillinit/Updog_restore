@@ -1347,12 +1347,14 @@ jobs:
           mkdir -p "$provider_evidence_dir"
           node scripts/release/collect-provider-evidence.mjs \
             --deployment-url "$DEPLOYMENT_URL" \
-            --output-dir "$provider_evidence_dir"
+            --output-dir "$provider_evidence_dir" \
+            --access-posture
           node scripts/release/verify-provider-identity.mjs \
             --mode workflow \
             --expected-sha "$CANDIDATE_SHA" \
             --vercel "$provider_evidence_dir/vercel-evidence.json" \
             --railway "$provider_evidence_dir/railway-evidence.json" \
+            --access-posture-file "$provider_evidence_dir/vercel-access-posture.json" \
             --expected-vercel-project-id "$VERCEL_PROJECT_ID" \
             --canonical-hostname "$VERCEL_PRODUCTION_HOSTNAME" \
             --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
@@ -1658,12 +1660,14 @@ jobs:
             mkdir -p "$PROVIDER_EVIDENCE_DIR"
             node scripts/release/collect-provider-evidence.mjs \
               --deployment-url "$DEPLOYMENT_URL" \
-              --output-dir "$PROVIDER_EVIDENCE_DIR"
+              --output-dir "$PROVIDER_EVIDENCE_DIR" \
+              --access-posture
             node scripts/release/verify-provider-identity.mjs \
               --mode operator \
               --expected-sha "$CANDIDATE_SHA" \
               --vercel "$PROVIDER_EVIDENCE_DIR/vercel-evidence.json" \
               --railway "$PROVIDER_EVIDENCE_DIR/railway-evidence.json" \
+              --access-posture-file "$PROVIDER_EVIDENCE_DIR/vercel-access-posture.json" \
               --expected-vercel-project-id "$VERCEL_PROJECT_ID" \
               --canonical-hostname "$VERCEL_PRODUCTION_HOSTNAME" \
               --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
@@ -1874,6 +1878,7 @@ jobs:
           METRICS_KEY: ${{ secrets.METRICS_KEY }}
           PROD_SMOKE_USERNAME: ${{ secrets.PROD_SMOKE_USERNAME }}
           PROD_SMOKE_PASSWORD: ${{ secrets.PROD_SMOKE_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
           set -euo pipefail
           : "${PRODUCTION_URL:?PRODUCTION_URL is required}"
@@ -1881,6 +1886,7 @@ jobs:
           : "${METRICS_KEY:?METRICS_KEY is required}"
           : "${PROD_SMOKE_USERNAME:?PROD_SMOKE_USERNAME is required}"
           : "${PROD_SMOKE_PASSWORD:?PROD_SMOKE_PASSWORD is required}"
+          : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
           : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
           npx playwright test tests/smoke/production-boundaries.spec.ts --project=production --reporter=line
 

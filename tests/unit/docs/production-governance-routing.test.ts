@@ -390,6 +390,62 @@ describe('production governance documentation routing', () => {
     expect(guide).not.toContain('## One-time post-incident credential rotation');
   });
 
+  it('pins ADR-117 scope, posture gate, access hold, and write-guard evidence', async () => {
+    const decisions = await readRepositoryFile('DECISIONS.md');
+    const decision = flattenWhitespace(
+      decisions
+        .split('## ADR-117: Production Vercel Authentication Covers All Deployments')[1]
+        ?.split('\n## ADR-')[0] ?? ''
+    );
+    const policy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const policySection = flattenWhitespace(
+      (await readRepositoryFile(policyPath))
+        .split('## One-time Vercel Authentication coverage deviation (ADR-117)')[1]
+        ?.split('\n## ')[0] ?? ''
+    );
+    const guide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+    const matrix = flattenWhitespace(
+      await readRepositoryFile('audit/surface-contract-matrix/README.md')
+    );
+    const architecture = flattenWhitespace(await readRepositoryFile('docs/ARCHI.md'));
+
+    expect(decision).toContain('one Vercel project PATCH changed');
+    expect(decision).toContain('2026-11-20 (UTC)');
+    expect(decision).toContain('ssoProtection.deploymentType');
+    expect(decision).toContain('all_except_custom_domains');
+    expect(decision).toContain('No admitted route covered that provider action');
+    expect(decision).toContain(
+      're-probe of the production project domain on 2026-11-20 confirmed it'
+    );
+    expect(decision).toContain('creates no standing exception');
+    expect(decision).toContain('does not authorize the action retroactively');
+    expect(decision).toContain('collect-provider-evidence.mjs --access-posture');
+    expect(decision).toContain('verify-provider-identity.mjs --access-posture-file');
+    expect(decision).toContain('staged-provider-identity');
+    expect(decision).toContain('promote fresh-evidence step');
+    expect(decision).toContain('Public share links require Vercel login');
+    expect(decision).toContain('DO NOT REVERT');
+    expect(decision).toContain('<project-id>');
+    expect(decision).toContain('<team-id>');
+    expect(policySection).toContain('No standing exception');
+    expect(policySection).toContain("owner's explicit instruction");
+    expect(policySection).toContain('redirect to Vercel login');
+    expect(policy).toContain('ADR-079 review and access-expansion hold remain in force');
+    expect(guide).toContain('## Access-expansion hold (ADR-117)');
+    expect(guide).toContain('## Write-guard rollout census');
+    expect(guide).toContain('SELECT role, count(*) FROM users WHERE is_active');
+    expect(guide).toContain('outside `admin`, `partner`, or `analyst`');
+    expect(guide).toContain('LP-linked identities need no census row');
+    expect(guide).toContain('Keep census results out of the repository');
+    expect(guide).toContain('ADR-117 holds new users outside');
+    expect(matrix).toContain('the effective write guard, an equivalent control');
+    expect(matrix).toContain('or an explicit exception');
+    expect(matrix).toContain('Authentication alone does not prove write authority');
+    expect(architecture).toContain(
+      'LP-reporting import and reconciliation POST routes outside the actuals pilot require a team write role and verified fund write scope.'
+    );
+  });
+
   it('restricts the original project to no Preview-producing action and admits no write', async () => {
     const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
     const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));

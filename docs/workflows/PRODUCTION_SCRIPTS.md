@@ -468,12 +468,39 @@ entrypoint. Use the named workflow for production apply.
    match the intended release SHA. A worker-only result, schema apply, baseline
    capture, or Release Proof alone cannot close it.
 
+## Access-expansion hold (ADR-117)
+
+Keep production Vercel Authentication mode `all`. Automation enters only through
+the automation-bypass secret. Public share links require Vercel login.
+
+Do not change the protection mode, add a custom domain or LP affiliation, issue
+a service principal, or enable public sharing until the ADR-079 review of
+Vercel-reachable writes is closed and its fixes are in production.
+
+## Write-guard rollout census
+
+Before the release that carries this change, the owner runs a read-only census
+against the direct production URL. Count active users by role. Enter the URL
+without placing it in shell history:
+
+```bash
+read -rs DATABASE_URL; export DATABASE_URL
+PGOPTIONS='-c default_transaction_read_only=on' psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -Atc \
+  'SELECT role, count(*) FROM users WHERE is_active GROUP BY role ORDER BY role;'
+unset DATABASE_URL
+```
+
+Release stops if any active user has a role outside `admin`, `partner`, or
+`analyst`. LP-linked identities need no census row because
+`enforceTeamWriteRole` denies them. Keep census results out of the repository.
+
 ## Production user provisioning
 
 `scripts/provision-prod-users.ts` creates, updates, or deactivates login users
 and replaces their fund grants from an identity file. `--apply` against
 production is admitted by the governing policy as an owner-run route. The owner
-runs it locally, never from CI. Each run is a separate owner action.
+runs it locally, never from CI. Each run is a separate owner action. ADR-117
+holds new users outside `admin`, `partner`, and `analyst`.
 
 ### Identity file
 

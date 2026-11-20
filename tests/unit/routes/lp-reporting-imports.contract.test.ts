@@ -1,5 +1,5 @@
 /*
- * Real-guard contract: requireAuth is mocked to inject req.user; requireFundAccess is the REAL guard. Deny = caller fundIds [1] targeting fund 2. The exact toBe(403) (not just not-200) ensures the :fundId reached the guard; a 400 would mean it did not.
+ * Real-guard contract: requireAuth injects req.user; write-role and fund-scope guards stay real. Deny = caller fundIds [1] targeting fund 2.
  */
 import express, { type NextFunction, type Request, type Response } from 'express';
 import request from 'supertest';
@@ -61,7 +61,8 @@ vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
         id: 'u1',
         sub: 'u1',
         email: 'u@example.com',
-        roles: ['user'],
+        role: 'analyst',
+        roles: ['analyst'],
         ip: '127.0.0.1',
         userAgent: 'vitest',
         fundIds: [1],

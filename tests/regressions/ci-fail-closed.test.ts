@@ -126,7 +126,11 @@ async function readPathFilters(): Promise<Record<string, string[]>> {
   return YAML.parse(contents) as Record<string, string[]>;
 }
 
-function matchesPathFilter(filters: Record<string, string[]>, filter: string, file: string): boolean {
+function matchesPathFilter(
+  filters: Record<string, string[]>,
+  filter: string,
+  file: string
+): boolean {
   return picomatch(filters[filter] ?? [], { dot: true })(file);
 }
 
@@ -150,20 +154,16 @@ async function executeStepWithStubNpm(step: WorkflowStep, exitCode = 0): Promise
   );
 
   try {
-    await execFileAsync(
-      'bash',
-      ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', step.run],
-      {
-        cwd: path.join(process.cwd(), step['working-directory'] ?? '.'),
-        env: {
-          ...process.env,
-          NPM_INVOCATIONS: invocationPath,
-          NPM_STUB_EXIT: String(exitCode),
-          PATH: `${tempDir}:${process.env['PATH'] ?? ''}`,
-        },
-        encoding: 'utf8',
-      }
-    );
+    await execFileAsync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', step.run], {
+      cwd: path.join(process.cwd(), step['working-directory'] ?? '.'),
+      env: {
+        ...process.env,
+        NPM_INVOCATIONS: invocationPath,
+        NPM_STUB_EXIT: String(exitCode),
+        PATH: `${tempDir}:${process.env['PATH'] ?? ''}`,
+      },
+      encoding: 'utf8',
+    });
     return await readFile(invocationPath, 'utf8');
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -2757,6 +2757,8 @@ async function executeSmokeGuardFragment(
           METRICS_KEY: process.env['METRICS_KEY'] ?? 'metrics-key',
           PROD_SMOKE_USERNAME: process.env['PROD_SMOKE_USERNAME'] ?? 'smoke-user',
           PROD_SMOKE_PASSWORD: process.env['PROD_SMOKE_PASSWORD'] ?? 'smoke-password',
+          VERCEL_AUTOMATION_BYPASS_SECRET:
+            process.env['VERCEL_AUTOMATION_BYPASS_SECRET'] ?? 'bypass-secret',
           NX_MARKER: markerPath,
           PATH: `${tempDir}:${process.env['PATH'] ?? ''}`,
         },
@@ -3062,11 +3064,15 @@ async function evaluateDeepSecurityGate(
   await writeFile(summaryPath, '');
 
   try {
-    await execFileAsync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', evaluator], {
-      cwd: process.cwd(),
-      env: { ...process.env, GITHUB_STEP_SUMMARY: summaryPath },
-      encoding: 'utf8',
-    });
+    await execFileAsync(
+      'bash',
+      ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', evaluator],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, GITHUB_STEP_SUMMARY: summaryPath },
+        encoding: 'utf8',
+      }
+    );
     return 'passed';
   } catch {
     return 'failed';
@@ -4743,10 +4749,7 @@ describe('required CI fails closed', () => {
     const expected = [
       ['Install G3 Vercel build dependencies', 'ci --ignore-scripts'],
       ['Validate G3 Vercel build dependency tree', 'ls --all'],
-      [
-        'Audit G3 Vercel build production dependencies',
-        'audit --omit=dev --audit-level=critical',
-      ],
+      ['Audit G3 Vercel build production dependencies', 'audit --omit=dev --audit-level=critical'],
     ] as const;
     const nestedDirectory = path.join(process.cwd(), 'scripts/release/g3-vercel-build');
 
@@ -4814,9 +4817,7 @@ describe('required CI fails closed', () => {
     );
     expect(collectorBuild?.run).toContain('docker build');
     expect(collectorBuild?.run).toContain('--platform linux/amd64');
-    expect(collectorBuild?.run).toContain(
-      '--file scripts/release/g3-vercel-build/Dockerfile'
-    );
+    expect(collectorBuild?.run).toContain('--file scripts/release/g3-vercel-build/Dockerfile');
     expect(collectorBuild?.run?.trim().endsWith('.')).toBe(true);
 
     const deepScanWorkflow = await readWorkflow('security-scan.yml');
@@ -4833,9 +4834,7 @@ describe('required CI fails closed', () => {
       (step) => step.uses?.includes('aquasecurity/trivy-action')
     );
     expect(collectorSarif?.with?.['image-ref']).toBe('updog-g3-vercel-build:latest');
-    expect(collectorSarif?.with?.output).toBe(
-      'trivy-g3-vercel-build-container-results.sarif'
-    );
+    expect(collectorSarif?.with?.output).toBe('trivy-g3-vercel-build-container-results.sarif');
 
     const gateNeeds = workflow.jobs?.gate?.needs;
     const normalizedNeeds = typeof gateNeeds === 'string' ? [gateNeeds] : (gateNeeds ?? []);
@@ -5468,6 +5467,14 @@ describe('required CI fails closed', () => {
       expect(stagedProviderScripts).toContain('--expected-capital-call-service-id');
       expect(stagedProviderScripts).toContain('--expected-fund-scenario-deployment-id');
       expect(stagedProviderScripts).toContain('--expected-capital-call-deployment-id');
+      // F_1.3.9 / ADR-117: the staged check also fails closed unless production
+      // stays behind Vercel Authentication on every inventoried hostname.
+      expect(stagedProviderScripts).toMatch(
+        /--output-dir "\$provider_evidence_dir" \\\n\s+--access-posture\n/
+      );
+      expect(stagedProviderScripts).toContain(
+        '--access-posture-file "$provider_evidence_dir/vercel-access-posture.json"'
+      );
       expect(stagedProviderScripts).not.toContain('https://backboard.railway.com/graphql/v2');
       const g4OperatorEvidence = releaseWorkflow.jobs?.['g4-operator-evidence'];
       expect(g4OperatorEvidence).toBeDefined();
@@ -6471,6 +6478,17 @@ describe('required CI fails closed', () => {
       ]) {
         expect(freshEvidenceStep?.run).toContain(probeFlag);
       }
+      // F_1.3.9 / ADR-117: the posture gate re-runs after the approval wait, at
+      // the final promotion decision.
+      expect(freshEvidenceStep?.env?.VERCEL_PRODUCTION_HOSTNAME).toBe(
+        '${{ vars.VERCEL_PRODUCTION_HOSTNAME }}'
+      );
+      expect(freshEvidenceStep?.run).toMatch(
+        /--output-dir "\$PROVIDER_EVIDENCE_DIR" \\\n\s+--access-posture\n/
+      );
+      expect(freshEvidenceStep?.run).toContain(
+        '--access-posture-file "$PROVIDER_EVIDENCE_DIR/vercel-access-posture.json"'
+      );
       const promoteCliStep = promoteSteps[promoteCliIndex];
       expect(promoteCliStep?.id).toBe('promote-cli');
       expect(promoteCliStep?.run).toContain('set +e');
@@ -6514,13 +6532,22 @@ describe('required CI fails closed', () => {
       expect(JSON.stringify(releaseWorkflow.jobs ?? {})).not.toContain('vars.PRODUCTION_URL');
       const postPromotionSmoke = releaseWorkflow.jobs?.['post-promotion-smoke'];
       expect(normalizeNeeds(postPromotionSmoke?.needs)).toEqual(['promote', 'validate-target']);
-      expect(JSON.stringify(postPromotionSmoke?.steps ?? [])).not.toContain(
-        'VERCEL_AUTOMATION_BYPASS_SECRET'
-      );
       const postPromotionSteps = postPromotionSmoke?.steps ?? [];
       const authenticatedSmokeIndex = postPromotionSteps.findIndex(
         (step) => step.name === 'Run authenticated production smoke'
       );
+      // F_1.3.9 / ADR-117: production sits behind Vercel Authentication, so only
+      // the authenticated smoke step carries the automation bypass secret.
+      const authenticatedSmoke = postPromotionSteps[authenticatedSmokeIndex];
+      expect(authenticatedSmoke?.env?.VERCEL_AUTOMATION_BYPASS_SECRET).toBe(
+        '${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}'
+      );
+      expect(authenticatedSmoke?.run).toContain(
+        ': "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"'
+      );
+      expect(
+        JSON.stringify(postPromotionSteps.filter((_, index) => index !== authenticatedSmokeIndex))
+      ).not.toContain('VERCEL_AUTOMATION_BYPASS_SECRET');
       const driverLogGateIndex = postPromotionSteps.findIndex(
         (step) => step.name === 'Require clean Vercel database-driver log window'
       );
@@ -7834,9 +7861,7 @@ describe('required CI fails closed', () => {
   it.each(['', 'missing', 'TRUE'])(
     'fails the CI gate on malformed collector classification %j',
     async (g3VercelBuildCollector) => {
-      await expect(
-        evaluateCiGateStatus({ g3VercelBuildCollector })
-      ).resolves.toBe('failed');
+      await expect(evaluateCiGateStatus({ g3VercelBuildCollector })).resolves.toBe('failed');
     }
   );
 

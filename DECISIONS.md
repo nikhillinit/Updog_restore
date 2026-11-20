@@ -10644,6 +10644,12 @@ mutation, and role-matrix tests prove intended access. `PUT /api/lp/settings`
 changing from fake-200 to 501 is an intentional, ratified contract break (no
 real consumer could depend on an unpersisted write).
 
+### Status note — 2026-11-20 (F_1.3.9)
+
+The ten LP-reporting import write routes now carry the team write-role and
+write-scope guard. Ownership predicates are covered by tests. Review of the
+remaining Vercel-reachable write rows for effective write guards is open.
+
 ## ADR-080: Legacy Railway API Config Retirement (F_1.2.5 / G3 Phase 3)
 
 **Date:** 2026-08-10 **Status:** Accepted **Tags:** #railway #topology
@@ -13919,3 +13925,49 @@ own governed decision.
   https://github.com/nikhillinit/Updog_restore/actions/runs/36642928665
 [adr115-onboarding-merge]:
   https://github.com/nikhillinit/Updog_restore/pull/1708
+
+## ADR-117: Production Vercel Authentication Covers All Deployments
+
+**Date:** 2026-11-20 **Status:** Recorded. Documents an action already executed;
+admits no route, grants no authority, and does not backdate authority. **Tags:**
+#auth #release-gate #vercel
+
+### Context
+
+The previous Vercel Authentication mode did not cover the production project
+domain.
+
+### Decision
+
+On 2026-11-20 (UTC), one Vercel project PATCH changed
+`ssoProtection.deploymentType` from `all_except_custom_domains` to `all`. An
+agent session executed the PATCH on the owner's explicit instruction, through
+the Vercel API with the owner's CLI credentials, after the Vercel MCP connector
+refused the write (403). No admitted route covered that provider action.
+
+Afterwards, unauthenticated probes of every production hostname returned a
+redirect to Vercel login. A later re-probe of the production project domain on
+2026-11-20 confirmed it. This record creates no standing exception and does not
+authorize the action retroactively.
+
+Production mode stays `all`. The release posture gate enforces this with
+`collect-provider-evidence.mjs --access-posture` and
+`verify-provider-identity.mjs --access-posture-file` at
+`staged-provider-identity` and the promote fresh-evidence step.
+
+No protection-mode change, custom domain, LP affiliation, service-principal
+issuance, or public sharing is allowed until the ADR-079 review of
+Vercel-reachable writes is closed and its fixes are in production.
+
+### Consequences
+
+Automation enters only through the automation-bypass secret. Public share links
+require Vercel login. The command to restore the previous mode is recorded for
+recovery reference only:
+
+**DO NOT REVERT.**
+
+```sh
+# body.json: {"ssoProtection":{"deploymentType":"all_except_custom_domains"}}
+vercel api '/v9/projects/<project-id>?teamId=<team-id>' --method PATCH --input body.json
+```
