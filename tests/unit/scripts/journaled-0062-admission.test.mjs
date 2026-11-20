@@ -1,11 +1,18 @@
 import { Buffer } from 'node:buffer';
+import { spawnSync } from 'node:child_process';
 import { generateKeyPairSync, sign } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import process from 'node:process';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import YAML from 'yaml';
 
+import { loadCurrentForecastBaselineLedger } from '../../../scripts/current-forecast-journaled-migration-range.mjs';
 import { computeTargetFingerprint } from '../../../scripts/reconcile-prod-schema.mjs';
+import { JOURNALED_0050_0061_TARGETS } from '../../../scripts/run-journaled-0050-0061-migrations.mjs';
+import { runJournaled0062Migration } from '../../../scripts/run-journaled-0062-migration.mjs';
 import {
   assert0062Admission,
   assert0062OwnerApproval,
@@ -13,6 +20,62 @@ import {
   assert0062Rehearsal,
   assert0062RestoreBranch,
 } from '../../../scripts/release/journaled-0062-admission.mjs';
+
+vi.mock('../../../scripts/reconcile-prod-schema.mjs', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    auditManifest: async (_client, manifest) => ({
+      action: 'SKIP',
+      objects:
+        manifest.order === 39
+          ? [
+              [
+                'function:vehicle_onboarding_artifact_digest',
+                false,
+                ['missing-function:vehicle_onboarding_artifact_digest'],
+              ],
+              [
+                'function:vehicle_onboarding_refuse_envelope_source',
+                false,
+                ['missing-function:vehicle_onboarding_refuse_envelope_source'],
+              ],
+              ['function:internal_economics_forbid_update', true, []],
+              [
+                'internal_capital_envelope_versions',
+                true,
+                ['missing-trigger:vehicle_onboarding_refuse_envelope_source_trigger'],
+              ],
+              [
+                'vehicle_onboarding_commands',
+                false,
+                [
+                  'missing-table:vehicle_onboarding_commands',
+                  'missing-trigger:vehicle_onboarding_commands_forbid_update_trigger',
+                ],
+              ],
+            ].map(([table, present, deltas]) => ({
+              table,
+              present,
+              action: deltas.length ? 'REFUSE-FOR-HUMAN' : 'SKIP',
+              deltas: deltas.map((decision) => {
+                const [kind, name] = decision.split(':');
+                return { kind, name };
+              }),
+            }))
+          : [],
+    }),
+  };
+});
+
+const temporaryDirectories = [];
+afterEach(async () => {
+  await Promise.all(
+    temporaryDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { recursive: true, force: true }))
+  );
+});
 
 const { publicKey, privateKey } = generateKeyPairSync('ed25519');
 const now = Date.parse('2026-11-18T07:00:00Z');
@@ -138,6 +201,86 @@ describe('0062 admission', () => {
     expect(() => assert0062OwnerApproval([approval], 'malformed')).toThrow(
       /repository owner's approval of this production-schema run/
     );
+  });
+
+  it('keeps the 0062 report payload minimal and redacts identifiers on CLI refusal', async () => {
+    const baseline = await loadCurrentForecastBaselineLedger({ migrationsDir: 'migrations' });
+    const adr074Baseline = baseline.filter(({ idx }) => idx <= 8 || idx >= 46);
+    const ledgerRows = [...adr074Baseline, ...JOURNALED_0050_0061_TARGETS].map(
+      ({ hash, when }) => ({ hash, created_at: when })
+    );
+    const client = {
+      host: 'db.example.invalid',
+      port: 5432,
+      connect: vi.fn(async () => undefined),
+      end: vi.fn(async () => undefined),
+      query: vi.fn(async (statement) => {
+        if (statement === 'SHOW server_version_num')
+          return { rows: [{ server_version_num: 160000 }] };
+        if (statement.startsWith('SELECT pg_try_advisory_lock'))
+          return { rows: [{ acquired: true }] };
+        if (statement.includes('FROM public.drizzle_migrations')) return { rows: ledgerRows };
+        return { rows: [] };
+      }),
+    };
+    const result = await runJournaled0062Migration({
+      connectionString:
+        'postgres://synthetic-user:synthetic-password@db.example.invalid/synthetic-db',
+      clientFactory: () => client,
+      stdout: { write: vi.fn() },
+    });
+    expect(result).toEqual({
+      preState: 'ready',
+      postState: 'ready',
+      applied: false,
+      migrationRange: [tag],
+    });
+    const admissionSource = await readFile('scripts/release/journaled-0062-admission.mjs', 'utf8');
+    expect(admissionSource).toContain(
+      "writeFile('reports/journaled-0062-migration-result.json', `${JSON.stringify(result)}\\n`"
+    );
+
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'journaled-0062-cli-'));
+    temporaryDirectories.push(directory);
+    const syntheticIdentifiers = [
+      repository,
+      candidateSha,
+      'prod-project',
+      'br-prod',
+      'ep-prod',
+      'fixture',
+      'fixture_admin',
+      'sandbox-project',
+      'br-sandbox-parent',
+      'br-restore',
+    ];
+    const runCli = (admission) =>
+      spawnSync(process.execPath, ['scripts/release/journaled-0062-admission.mjs'], {
+        cwd: process.cwd(),
+        env: {
+          ...protectedEnv,
+          DATABASE_URL:
+            'postgres://synthetic-user:synthetic-password@db.example.invalid/synthetic-db',
+          SCHEMA_0062_ADMISSION: admission,
+          PATH: directory,
+        },
+        encoding: 'utf8',
+        timeout: 10_000,
+      });
+    const invalid = runCli('{');
+    expect(invalid.status).toBe(1);
+    for (const identifier of syntheticIdentifiers) expect(invalid.stderr).not.toContain(identifier);
+
+    const currentTime = Date.now();
+    const valid = runCli(
+      envelope({
+        reviewedAtMs: currentTime - 60_000,
+        isolatedRestoredAtMs: currentTime - 3_600_000,
+      })
+    );
+    expect(valid.status).toBe(1);
+    expect(valid.stderr).toContain('0062 apply failed. Check the exact ledger readback');
+    for (const identifier of syntheticIdentifiers) expect(valid.stderr).not.toContain(identifier);
   });
 
   it('revalidates the provider endpoint and restore reference against approved scope', () => {

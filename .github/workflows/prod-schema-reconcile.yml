@@ -872,11 +872,11 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           ACTUALS_PREFLIGHT_SOURCE_SHA: ${{ inputs.expected_sha }}
           PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
-          ACTUALS_PREFLIGHT_NEON_PROJECT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_PROJECT_ID }}
-          ACTUALS_PREFLIGHT_NEON_BRANCH_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_BRANCH_ID }}
-          ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID: ${{ vars.ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID }}
-          PRODUCTION_DATABASE_NAME: ${{ vars.PRODUCTION_DATABASE_NAME }}
-          ACTUALS_PREFLIGHT_DATABASE_ROLE: ${{ vars.ACTUALS_PREFLIGHT_DATABASE_ROLE }}
+          ACTUALS_PREFLIGHT_NEON_PROJECT_ID: ${{ inputs.mode == 'apply-journaled-0062' && secrets.ACTUALS_PREFLIGHT_NEON_PROJECT_ID || '' }}
+          ACTUALS_PREFLIGHT_NEON_BRANCH_ID: ${{ inputs.mode == 'apply-journaled-0062' && secrets.ACTUALS_PREFLIGHT_NEON_BRANCH_ID || '' }}
+          ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID: ${{ inputs.mode == 'apply-journaled-0062' && secrets.ACTUALS_PREFLIGHT_NEON_ENDPOINT_ID || '' }}
+          PRODUCTION_DATABASE_NAME: ${{ inputs.mode == 'apply-journaled-0062' && secrets.PRODUCTION_DATABASE_NAME || '' }}
+          ACTUALS_PREFLIGHT_DATABASE_ROLE: ${{ inputs.mode == 'apply-journaled-0062' && secrets.ACTUALS_PREFLIGHT_DATABASE_ROLE || '' }}
           PRODUCTION_SCHEMA_TARGET_FINGERPRINT: ${{ secrets.PRODUCTION_SCHEMA_TARGET_FINGERPRINT }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
           REPOSITORY_OWNER_ID: ${{ github.repository_owner_id }}
