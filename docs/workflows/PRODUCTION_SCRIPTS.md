@@ -1174,7 +1174,11 @@ The executor never approves a deployment or environment review.
    creation date. Mark the token currently used by GitHub and, on the first use,
    the original Production token and any token created on 2026-11-02. Read
    `Production` secret metadata (names, `created_at`, `updated_at`); the
-   executor may perform this read.
+   executor may perform this read. Verify that the GitHub `Production`
+   environment already has a `RAILWAY_TOKEN` secret and privately record its
+   `created_at` and `updated_at`. If the secret is absent or its metadata cannot
+   be verified, stop before creating a Railway token or writing a GitHub secret.
+   Provisioning a missing secret requires separate authorization.
 4. **Create:** create one project token for the Production environment named
    `github-production-<YYYYMMDD>`; add a suffix for a later attempt on the same
    day.

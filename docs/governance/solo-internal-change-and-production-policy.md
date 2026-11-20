@@ -128,10 +128,12 @@ This action's budget is consumed; later replacements use ADR-118.
 
 ADR-118 admits a standing owner-run route, available only after ADR-118 and this
 policy section are admitted to protected `main`. Each use is a separate owner
-action and covers only the GitHub environment `Production` secret
-`RAILWAY_TOKEN`, replaced with one Railway project token scoped to the
+action and covers replacing only the existing `RAILWAY_TOKEN` secret in the
+GitHub `Production` environment with one Railway project token scoped to the
 Production environment. The read-only provider check runs against the stored
 token before any replacement; a `PASS` ends the use without a replacement.
+Inventory must verify the existing `RAILWAY_TOKEN` metadata before creating a
+token. Provisioning a missing secret requires separate authorization.
 
 The owner creates the token in the Railway dashboard and writes it from standard
 input. Token plaintext never enters an agent session, file, shell history, or

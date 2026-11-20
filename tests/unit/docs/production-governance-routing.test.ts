@@ -364,6 +364,27 @@ describe('production governance documentation routing', () => {
     );
   });
 
+  it('requires existing Railway secret metadata during inventory before token creation', async () => {
+    const plan = flattenWhitespace(
+      await readRepositoryFile(
+        'docs/1-plans/F_1.3.10_railway-production-token-replacement-route.plan.md'
+      )
+    );
+    const guide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+    const policy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const decisions = flattenWhitespace(await readRepositoryFile('DECISIONS.md'));
+    const precondition =
+      'Verify that the GitHub `Production` environment already has a `RAILWAY_TOKEN` secret and privately record its `created_at` and `updated_at`. If the secret is absent or its metadata cannot be verified, stop before creating a Railway token or writing a GitHub secret. Provisioning a missing secret requires separate authorization.';
+
+    expect(guide).toContain(`${precondition} 4. **Create:**`);
+    expect(plan).toContain(`${precondition} 4. Create:`);
+    for (const authority of [policy, decisions]) {
+      expect(authority).toContain(
+        'Inventory must verify the existing `RAILWAY_TOKEN` metadata before creating a token. Provisioning a missing secret requires separate authorization.'
+      );
+    }
+  });
+
   it('admits owner-run production user provisioning with its gates and procedure', async () => {
     const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
     const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));

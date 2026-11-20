@@ -14109,7 +14109,9 @@ mandate blocks any replacement without an explicit exception.
    the Production environment. Each use is a separate owner action. The owner
    creates the token in the Railway dashboard and writes it with `gh secret set`
    from standard input. The token plaintext never enters an agent session, a
-   file, shell history, or the repository.
+   file, shell history, or the repository. Inventory must verify the existing
+   `RAILWAY_TOKEN` metadata before creating a token. Provisioning a missing
+   secret requires separate authorization.
 2. For each use, the owner's explicit acceptance of the concurrent-writer
    overwrite risk replaces optimistic locking for that use's secret writes, at
    most three. Each write is followed by metadata readback. The exception covers
