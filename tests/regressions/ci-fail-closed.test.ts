@@ -53,6 +53,11 @@ type WorkflowJob = {
 };
 
 type Workflow = {
+  concurrency?: {
+    group?: string;
+    ['cancel-in-progress']?: boolean;
+    queue?: string;
+  };
   defaults?: {
     run?: {
       shell?: string;
@@ -5147,6 +5152,104 @@ describe('required CI fails closed', () => {
     expect(cleanup?.run).toContain('release-recovery-context-v1.json');
   });
 
+  it('checks stored Production provider credentials without write capabilities', async () => {
+    const workflowName = 'production-provider-check.yml';
+    const workflow = await readWorkflow(workflowName);
+    const workflowText = await readFile(path.join(workflowsDir, workflowName), 'utf8');
+    const dispatch = workflow.on?.workflow_dispatch as { inputs?: unknown } | undefined;
+
+    expect(Object.keys(workflow.on ?? {})).toEqual(['workflow_dispatch']);
+    expect(Object.keys(dispatch ?? {})).toEqual([]);
+    expect(workflow.permissions).toEqual({ contents: 'read' });
+    expect(workflow.concurrency).toEqual({
+      group: 'production-provider-check',
+      'cancel-in-progress': false,
+    });
+
+    const jobs = Object.entries(workflow.jobs ?? {});
+    expect(jobs).toHaveLength(1);
+    const [jobName, job] = jobs[0] ?? [];
+    expect(jobName).toBe('provider-check');
+    expect(job?.if).toBe("github.ref == 'refs/heads/main'");
+    expect(job?.environment).toBe('Production');
+    expect(job?.['timeout-minutes']).toBe(10);
+
+    const steps = job?.steps ?? [];
+    const checkout = steps.find((step) => step.name === 'Checkout trusted workflow commit');
+    expect(checkout?.uses).toBe('actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0');
+    expect(checkout?.with).toMatchObject({
+      ref: '${{ github.sha }}',
+      'persist-credentials': false,
+    });
+    expect(steps).toHaveLength(3);
+
+    const guardIndex = steps.findIndex((step) => step.name === 'Require owner dispatch on main');
+    const checkIndex = steps.findIndex(
+      (step) => step.name === 'Check stored Production provider credentials'
+    );
+    const guard = steps[guardIndex];
+    expect(guardIndex).toBeGreaterThanOrEqual(0);
+    expect(guardIndex).toBeGreaterThan(steps.indexOf(checkout!));
+    expect(checkIndex).toBeGreaterThan(guardIndex);
+    expect(guard?.env).toEqual({
+      REPOSITORY_OWNER_ID: '${{ github.repository_owner_id }}',
+    });
+    const guardRun = guard?.run ?? '';
+    const guardTests = [
+      'test "$GITHUB_EVENT_NAME" = workflow_dispatch',
+      'test "$GITHUB_REF" = refs/heads/main',
+      'test -n "$REPOSITORY_OWNER_ID"',
+      'test "$GITHUB_ACTOR_ID" = "$REPOSITORY_OWNER_ID"',
+    ];
+    let previousGuardTest = -1;
+    for (const guardTest of guardTests) {
+      const guardTestIndex = guardRun.indexOf(guardTest);
+      expect(guardTestIndex).toBeGreaterThan(previousGuardTest);
+      previousGuardTest = guardTestIndex;
+    }
+
+    const check = steps[checkIndex];
+    expect(check?.['timeout-minutes']).toBe(4);
+    expect(check?.env).toEqual({
+      VERCEL_TOKEN: '${{ secrets.VERCEL_TOKEN }}',
+      RAILWAY_TOKEN: '${{ secrets.RAILWAY_TOKEN }}',
+      VERCEL_ORG_ID: '${{ vars.VERCEL_ORG_ID }}',
+      VERCEL_PROJECT_ID: '${{ vars.VERCEL_PROJECT_ID }}',
+      VERCEL_PRODUCTION_HOSTNAME: '${{ vars.VERCEL_PRODUCTION_HOSTNAME }}',
+      RAILWAY_PROJECT_ID: '${{ vars.RAILWAY_PROJECT_ID }}',
+      RAILWAY_ENVIRONMENT_ID: '${{ vars.RAILWAY_ENVIRONMENT_ID }}',
+      RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: '${{ vars.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID }}',
+      RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID: '${{ vars.RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID }}',
+    });
+
+    const runScripts = allRunScripts(workflow);
+    const providerCommands = runScripts.filter((script) =>
+      script.includes('capture-release-recovery-context.mjs')
+    );
+    expect(providerCommands).toEqual([
+      'node scripts/release/capture-release-recovery-context.mjs check-providers',
+    ]);
+    expect(
+      [...workflowText.matchAll(/secrets\.([A-Z0-9_]+)/g)].map((match) => match[1]).sort()
+    ).toEqual(['RAILWAY_TOKEN', 'VERCEL_TOKEN']);
+    expect(
+      steps.some(
+        (step) =>
+          /upload-artifact|cache/i.test(step.uses ?? '') || Object.hasOwn(step.with ?? {}, 'cache')
+      )
+    ).toBe(false);
+    expect(runScripts.join('\n')).not.toMatch(
+      /\b(?:deploy|promote|redeploy)\b|\brailway\s+up\b|\b(?:npx\s+)?(?:vercel|vc)(?:\.cmd)?\b/i
+    );
+    expect(workflowText).not.toMatch(/pending_deployments|github\.token/i);
+    const usesSteps = steps.filter((step) => step.uses);
+    expect(usesSteps).toHaveLength(1);
+    expect(usesSteps.every((step) => /@[a-f0-9]{40}$/i.test(step.uses ?? ''))).toBe(true);
+    expect(workflowText).toMatch(
+      /Execution confers no authorization[\s\S]*reads Production secrets and vars,[\s\S]*writes nothing[\s\S]*outputs PROVIDER_CHECK PASS or one fixed failure class/
+    );
+  });
+
   it(
     'fails closed on exact-SHA and provider identity proof before promotion',
     { retry: 0, timeout: 120_000 },
@@ -7289,6 +7392,7 @@ describe('required CI fails closed', () => {
   it('enforces coherent job and step time budgets with zero canary retries', async () => {
     const releaseWorkflow = await readWorkflow('release-production.yml');
     const baselineWorkflow = await readWorkflow('capture-release-baseline.yml');
+    const providerCheckWorkflow = await readWorkflow('production-provider-check.yml');
 
     // Static budget rule: any job that declares step-level timeout-minutes
     // must keep the sum of declared inner budgets strictly below the outer
@@ -7296,6 +7400,7 @@ describe('required CI fails closed', () => {
     for (const [workflowName, workflow] of [
       ['release-production.yml', releaseWorkflow],
       ['capture-release-baseline.yml', baselineWorkflow],
+      ['production-provider-check.yml', providerCheckWorkflow],
     ] as const) {
       for (const [jobName, job] of Object.entries(workflow.jobs ?? {})) {
         const declaredStepBudgets = (job?.steps ?? [])

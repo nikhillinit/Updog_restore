@@ -1,0 +1,52 @@
+# Execution confers no authorization. This reads Production secrets and vars,
+# writes nothing, and outputs PROVIDER_CHECK PASS or one fixed failure class.
+name: Production Provider Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-provider-check
+  cancel-in-progress: false
+
+jobs:
+  provider-check:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Production
+
+    steps:
+      - name: Checkout trusted workflow commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Require owner dispatch on main
+        env:
+          REPOSITORY_OWNER_ID: ${{ github.repository_owner_id }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/main
+          test -n "$REPOSITORY_OWNER_ID"
+          test "$GITHUB_ACTOR_ID" = "$REPOSITORY_OWNER_ID"
+
+      - name: Check stored Production provider credentials
+        timeout-minutes: 4
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_PRODUCTION_HOSTNAME: ${{ vars.VERCEL_PRODUCTION_HOSTNAME }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: ${{ vars.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID }}
+          RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID: ${{ vars.RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID }}
+        run: node scripts/release/capture-release-recovery-context.mjs check-providers
