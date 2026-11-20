@@ -195,11 +195,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "b70365815d0cdfbf7c63044eb410b83fb6343b89a980a988c940da153cb8b243"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "b70365815d0cdfbf7c63044eb410b83fb6343b89a980a988c940da153cb8b243"
         }
       }
     },
@@ -222,11 +224,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "d994d44436d81826d5a09e4e1d2a1a96efdcaf587ba2f4475de9a52ab180524a"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "d994d44436d81826d5a09e4e1d2a1a96efdcaf587ba2f4475de9a52ab180524a"
         }
       }
     },
@@ -249,11 +253,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "50c5b943a99b202251110ee99d45ecd29f89c44e7804832869d605da141d318d"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "50c5b943a99b202251110ee99d45ecd29f89c44e7804832869d605da141d318d"
         }
       }
     },
@@ -276,11 +282,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "f8a15ca41b45af55f9ad5738d97e778a650ff3202fb56bbff3cb1cacb31f063b"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "f8a15ca41b45af55f9ad5738d97e778a650ff3202fb56bbff3cb1cacb31f063b"
         }
       }
     },
@@ -303,11 +311,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "29c71a7c00b0a9bfccd38fbfa2f7bcd2adce056da931a4a76d0ba9920b503b9e"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "29c71a7c00b0a9bfccd38fbfa2f7bcd2adce056da931a4a76d0ba9920b503b9e"
         }
       }
     },
@@ -330,11 +340,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "591eab3df937215d336a848ca405b2501a9c338501be4d7fc53971b45dff0b59"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "591eab3df937215d336a848ca405b2501a9c338501be4d7fc53971b45dff0b59"
         }
       }
     },
@@ -357,11 +369,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "22b11b8234762ccb2afdbd1c9fda24b66b0f519f71773b698660638616e646fc"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "22b11b8234762ccb2afdbd1c9fda24b66b0f519f71773b698660638616e646fc"
         }
       }
     },
@@ -384,11 +398,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "52f19db94d32b3b46862d3ea78b3650428cee6c9fb90297625d9ce22acd6897a"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "52f19db94d32b3b46862d3ea78b3650428cee6c9fb90297625d9ce22acd6897a"
         }
       }
     },
@@ -411,11 +427,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "93775c1c244ca83b33ad77d14a44b6198f0ea8ffdb778dda9b85eb1b2a430347"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "93775c1c244ca83b33ad77d14a44b6198f0ea8ffdb778dda9b85eb1b2a430347"
         }
       }
     },
@@ -438,11 +456,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "f33c7166404ff090880359455ecbf6d537d8573e719056379eeb3def69e55204"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "f33c7166404ff090880359455ecbf6d537d8573e719056379eeb3def69e55204"
         }
       }
     },
@@ -465,11 +485,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "1244d1b03d957f6195771bf7c409cdb335cd4560e335d087220473df6de28bfb"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "1244d1b03d957f6195771bf7c409cdb335cd4560e335d087220473df6de28bfb"
         }
       }
     },
@@ -492,11 +514,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "00792d37252403e255ca3f5589c119f076d0270c2cb5adccb074b62b6c41327f"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "00792d37252403e255ca3f5589c119f076d0270c2cb5adccb074b62b6c41327f"
         }
       }
     },
@@ -519,11 +543,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "d6182a27d1b10c255a96d8deb6d26d34a2d40f197681acb112fd7eae80b28d5b"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "d6182a27d1b10c255a96d8deb6d26d34a2d40f197681acb112fd7eae80b28d5b"
         }
       }
     },
@@ -546,17 +572,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "6b49b01c60cbd8b3d3a01a576279d738a11a324966ab83c212d428c392ec4808"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "6b49b01c60cbd8b3d3a01a576279d738a11a324966ab83c212d428c392ec4808"
         }
       }
     },
     "api:POST:/api/funds/:fundId/imports/artifacts": {
       "row_id": "api:POST:/api/funds/:fundId/imports/artifacts",
-      "contract_fingerprint": "313b9aff4930c1005b367b85b9bf64b6c08fc7db90a2d120aee10721fbea00ad",
+      "contract_fingerprint": "77a771f8da26cd138dd800eda3f9123faa9e58e7d296cfd4499464c9b4058c6d",
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
@@ -574,17 +602,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "77a771f8da26cd138dd800eda3f9123faa9e58e7d296cfd4499464c9b4058c6d"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "77a771f8da26cd138dd800eda3f9123faa9e58e7d296cfd4499464c9b4058c6d"
         }
       }
     },
     "api:POST:/api/funds/:fundId/imports/batches": {
       "row_id": "api:POST:/api/funds/:fundId/imports/batches",
-      "contract_fingerprint": "63f7802f54d22476ab937c6d836f5abdcdfab4105da21331898e67459c6f7950",
+      "contract_fingerprint": "8534c6503735efd1c284d5313ba538d784582c02fff8c7e0455890a492860a1e",
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
@@ -602,17 +632,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "8534c6503735efd1c284d5313ba538d784582c02fff8c7e0455890a492860a1e"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "8534c6503735efd1c284d5313ba538d784582c02fff8c7e0455890a492860a1e"
         }
       }
     },
     "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit": {
       "row_id": "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit",
-      "contract_fingerprint": "7a6904c3d28f5b414a09e6c3b45bdd6628ac856b0ce951de45dd995676db3b0b",
+      "contract_fingerprint": "3ddf4300b4a5144fec0ab33f617efc1067f3e278c250cf7e10af5db86c92b177",
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
@@ -630,17 +662,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "3ddf4300b4a5144fec0ab33f617efc1067f3e278c250cf7e10af5db86c92b177"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "3ddf4300b4a5144fec0ab33f617efc1067f3e278c250cf7e10af5db86c92b177"
         }
       }
     },
     "api:POST:/api/funds/:fundId/imports/ledger/commit": {
       "row_id": "api:POST:/api/funds/:fundId/imports/ledger/commit",
-      "contract_fingerprint": "6cc6cd20b37c45eb19e2ffdf18208bd88f83f3daf07b337f822e7bc1d62ade33",
+      "contract_fingerprint": "5f244e02616a195d2353114cb7f87b32da27c07cc87622d7602a0d47a787cd2b",
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
@@ -658,17 +692,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "5f244e02616a195d2353114cb7f87b32da27c07cc87622d7602a0d47a787cd2b"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "5f244e02616a195d2353114cb7f87b32da27c07cc87622d7602a0d47a787cd2b"
         }
       }
     },
     "api:POST:/api/funds/:fundId/imports/ledger/dry-run": {
       "row_id": "api:POST:/api/funds/:fundId/imports/ledger/dry-run",
-      "contract_fingerprint": "14cc72e7995314bcb8191221aba7284e6be7a5d926286688f375a50e136d3f10",
+      "contract_fingerprint": "603c5a777bba6a71c5ede2c214df8b05c7e214e4f2b5c3bed48c92e9df58b734",
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
@@ -686,17 +722,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "603c5a777bba6a71c5ede2c214df8b05c7e214e4f2b5c3bed48c92e9df58b734"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "603c5a777bba6a71c5ede2c214df8b05c7e214e4f2b5c3bed48c92e9df58b734"
         }
       }
     },
     "api:POST:/api/funds/:fundId/imports/mapping-profiles": {
       "row_id": "api:POST:/api/funds/:fundId/imports/mapping-profiles",
-      "contract_fingerprint": "26b4c05104bed8a7f5bd0ad973266ce4de19f257b12835b8ef5902cb38f9231e",
+      "contract_fingerprint": "a6c5fbe5c62a31efeea8b47451a23eb0c5e6913b997ad68f6becde69296da883",
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
@@ -714,17 +752,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "a6c5fbe5c62a31efeea8b47451a23eb0c5e6913b997ad68f6becde69296da883"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "a6c5fbe5c62a31efeea8b47451a23eb0c5e6913b997ad68f6becde69296da883"
         }
       }
     },
     "api:POST:/api/funds/:fundId/imports/valuation-marks/commit": {
       "row_id": "api:POST:/api/funds/:fundId/imports/valuation-marks/commit",
-      "contract_fingerprint": "a151d2dcd2babfa0e4a346ef27136ce048540adb08dfb0e06be25dc56f9dff23",
+      "contract_fingerprint": "cf45971b2354dccd12d4786378d9466d90db34e8439788c2e329846a19109c78",
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
@@ -742,17 +782,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "cf45971b2354dccd12d4786378d9466d90db34e8439788c2e329846a19109c78"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "cf45971b2354dccd12d4786378d9466d90db34e8439788c2e329846a19109c78"
         }
       }
     },
     "api:POST:/api/funds/:fundId/imports/valuation-marks/dry-run": {
       "row_id": "api:POST:/api/funds/:fundId/imports/valuation-marks/dry-run",
-      "contract_fingerprint": "3342424dd556e6b6372c088823a4186e8cf29db5eff5fc88ac9227abeb96b323",
+      "contract_fingerprint": "df9ba09656678a63d969a71fc639441674629fe8a5984be66ba0436222c3718c",
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
@@ -770,17 +812,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "df9ba09656678a63d969a71fc639441674629fe8a5984be66ba0436222c3718c"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "df9ba09656678a63d969a71fc639441674629fe8a5984be66ba0436222c3718c"
         }
       }
     },
     "api:POST:/api/funds/:fundId/reconciliation/cases/:caseId/resolve": {
       "row_id": "api:POST:/api/funds/:fundId/reconciliation/cases/:caseId/resolve",
-      "contract_fingerprint": "1b86fa83f1669af6e0ccc90c46ce2714537d345b8b77cb0885a3c5b7142a7d30",
+      "contract_fingerprint": "014db564f8d9dc1ed4c4292c57f7fd23dfcf58c2cecf3811b1c0f14bad53853e",
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
@@ -798,17 +842,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "014db564f8d9dc1ed4c4292c57f7fd23dfcf58c2cecf3811b1c0f14bad53853e"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "014db564f8d9dc1ed4c4292c57f7fd23dfcf58c2cecf3811b1c0f14bad53853e"
         }
       }
     },
     "api:POST:/api/funds/:fundId/reconciliation/cases/bulk-resolve": {
       "row_id": "api:POST:/api/funds/:fundId/reconciliation/cases/bulk-resolve",
-      "contract_fingerprint": "358efef48387249c9a51cb2ff023dc5d1a8ed6661b496d06764a75cd1a94ce00",
+      "contract_fingerprint": "8e333d5d0611f03b78207e3e9b784739bd6c6a3fc7aa1125a78834fc7b8b7f19",
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
@@ -826,11 +872,13 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "8e333d5d0611f03b78207e3e9b784739bd6c6a3fc7aa1125a78834fc7b8b7f19"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+          "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence",
+          "contract_fingerprint": "8e333d5d0611f03b78207e3e9b784739bd6c6a3fc7aa1125a78834fc7b8b7f19"
         }
       }
     }

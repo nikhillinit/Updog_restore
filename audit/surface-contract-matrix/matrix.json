@@ -11527,10 +11527,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Equivalent control unchanged: actuals pilot routes keep requireActualsPilotGrant and their existing chain. F_1.3.9 changed only other registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "b70365815d0cdfbf7c63044eb410b83fb6343b89a980a988c940da153cb8b243",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -15304,10 +15312,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Equivalent control unchanged: actuals pilot routes keep requireActualsPilotGrant and their existing chain. F_1.3.9 changed only other registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "d994d44436d81826d5a09e4e1d2a1a96efdcaf587ba2f4475de9a52ab180524a",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -15614,10 +15630,18 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Equivalent control unchanged: actuals pilot routes keep requireActualsPilotGrant and their existing chain. F_1.3.9 changed only other registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "50c5b943a99b202251110ee99d45ecd29f89c44e7804832869d605da141d318d",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -15924,10 +15948,18 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Equivalent control unchanged: actuals pilot routes keep requireActualsPilotGrant and their existing chain. F_1.3.9 changed only other registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "f8a15ca41b45af55f9ad5738d97e778a650ff3202fb56bbff3cb1cacb31f063b",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -16257,10 +16289,18 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Equivalent control unchanged: actuals pilot routes keep requireActualsPilotGrant and their existing chain. F_1.3.9 changed only other registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "29c71a7c00b0a9bfccd38fbfa2f7bcd2adce056da931a4a76d0ba9920b503b9e",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -16590,10 +16630,18 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Equivalent control unchanged: actuals pilot routes keep requireActualsPilotGrant and their existing chain. F_1.3.9 changed only other registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "591eab3df937215d336a848ca405b2501a9c338501be4d7fc53971b45dff0b59",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -16911,10 +16959,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Read row unchanged: requireAuth() and requireFundAccess remain on this registration. F_1.3.9 changed only the ten write registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "22b11b8234762ccb2afdbd1c9fda24b66b0f519f71773b698660638616e646fc",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -26755,10 +26811,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Read row unchanged: requireAuth() and requireFundAccess remain on this registration. F_1.3.9 changed only the ten write registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "52f19db94d32b3b46862d3ea78b3650428cee6c9fb90297625d9ce22acd6897a",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -73462,10 +73526,18 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Equivalent control unchanged: actuals pilot routes keep requireActualsPilotGrant and their existing chain. F_1.3.9 changed only other registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "93775c1c244ca83b33ad77d14a44b6198f0ea8ffdb778dda9b85eb1b2a430347",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -73771,10 +73843,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Equivalent control unchanged: actuals pilot routes keep requireActualsPilotGrant and their existing chain. F_1.3.9 changed only other registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "f33c7166404ff090880359455ecbf6d537d8573e719056379eeb3def69e55204",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -74102,10 +74182,18 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=The two typed refusal handlers expose their existing safe messages in the client-visible message field. Route registration, live pilot grant, fund access, status and error codes, idempotency, lock retries, successful receipt bytes and redacted unclassified failure behavior are preserved. The persistence suggestion now reflects the existing writes classification.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Equivalent control unchanged: actuals pilot routes keep requireActualsPilotGrant and their existing chain. F_1.3.9 changed only other registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "1244d1b03d957f6195771bf7c409cdb335cd4560e335d087220473df6de28bfb",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -74411,10 +74499,18 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Equivalent control unchanged: actuals pilot routes keep requireActualsPilotGrant and their existing chain. F_1.3.9 changed only other registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "00792d37252403e255ca3f5589c119f076d0270c2cb5adccb074b62b6c41327f",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -74744,10 +74840,18 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Equivalent control unchanged: actuals pilot routes keep requireActualsPilotGrant and their existing chain. F_1.3.9 changed only other registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "d6182a27d1b10c255a96d8deb6d26d34a2d40f197681acb112fd7eae80b28d5b",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -75077,10 +75181,18 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_override": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Equivalent control unchanged: actuals pilot routes keep requireActualsPilotGrant and their existing chain. F_1.3.9 changed only other registrations in imports.ts, so the source hash moved without a semantic change to this row.",
       "contract_fingerprint": "6b49b01c60cbd8b3d3a01a576279d738a11a324966ab83c212d428c392ec4808",
-      "approved_source_hashes": [],
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -75106,6 +75218,7 @@
       "interface": "http-api",
       "personas": [
         "admin",
+        "analyst",
         "gp"
       ],
       "reachability": "vercel",
@@ -75558,10 +75671,19 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
-      "contract_fingerprint": "313b9aff4930c1005b367b85b9bf64b6c08fc7db90a2d120aee10721fbea00ad",
-      "approved_source_hashes": [],
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Effective write guard: server/routes/lp-reporting/imports.ts:667 requireWriteRole(TEAM_WRITE_ROLES), :672 enforceProvidedFundScope(forWrite), :673 enforceTeamWriteRole, before the existing limiters and handler. auth_roles admin/analyst/partner derive from the inline guard. Unit role matrix (tests/unit/routes/lp-reporting/imports-routes.test.ts) covers this route: lp, service, LP-linked team roles and ungranted team users get 403 with no side effect. The shared parseWriteFundId helper returns 400 for an invalid fund ID (unit-tested on ledger/dry-run). No integration test exercises this route; behavioral proof is the unit role matrix.",
+      "contract_fingerprint": "77a771f8da26cd138dd800eda3f9123faa9e58e7d296cfd4499464c9b4058c6d",
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -75593,6 +75715,7 @@
       "interface": "http-api",
       "personas": [
         "admin",
+        "analyst",
         "gp"
       ],
       "reachability": "vercel",
@@ -76045,10 +76168,19 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
-      "contract_fingerprint": "63f7802f54d22476ab937c6d836f5abdcdfab4105da21331898e67459c6f7950",
-      "approved_source_hashes": [],
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Effective write guard: server/routes/lp-reporting/imports.ts:829 requireWriteRole(TEAM_WRITE_ROLES), :834 enforceProvidedFundScope(forWrite), :835 enforceTeamWriteRole, before the existing limiters and handler. auth_roles admin/analyst/partner derive from the inline guard. Unit role matrix (tests/unit/routes/lp-reporting/imports-routes.test.ts) covers this route: lp, service, LP-linked team roles and ungranted team users get 403 with no side effect. The shared parseWriteFundId helper returns 400 for an invalid fund ID (unit-tested on ledger/dry-run). No integration test exercises this route; behavioral proof is the unit role matrix.",
+      "contract_fingerprint": "8534c6503735efd1c284d5313ba538d784582c02fff8c7e0455890a492860a1e",
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -76080,6 +76212,7 @@
       "interface": "http-api",
       "personas": [
         "admin",
+        "analyst",
         "gp"
       ],
       "reachability": "vercel",
@@ -76532,10 +76665,19 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
-      "contract_fingerprint": "7a6904c3d28f5b414a09e6c3b45bdd6628ac856b0ce951de45dd995676db3b0b",
-      "approved_source_hashes": [],
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Effective write guard: server/routes/lp-reporting/imports.ts:1015 requireWriteRole(TEAM_WRITE_ROLES), :1020 enforceProvidedFundScope(forWrite), :1021 enforceTeamWriteRole, before the existing limiters and handler. auth_roles admin/analyst/partner derive from the inline guard. Unit role matrix (tests/unit/routes/lp-reporting/imports-routes.test.ts) covers this route: lp, service, LP-linked team roles and ungranted team users get 403 with no side effect. The shared parseWriteFundId helper returns 400 for an invalid fund ID (unit-tested on ledger/dry-run). Integration (valuation-mark-commit-http.pg.test.ts, makeApp and createServer): a batch from another fund returns 404 and the row is unchanged.",
+      "contract_fingerprint": "3ddf4300b4a5144fec0ab33f617efc1067f3e278c250cf7e10af5db86c92b177",
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -76567,6 +76709,7 @@
       "interface": "http-api",
       "personas": [
         "admin",
+        "analyst",
         "gp"
       ],
       "reachability": "vercel",
@@ -77019,10 +77162,19 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
-      "contract_fingerprint": "6cc6cd20b37c45eb19e2ffdf18208bd88f83f3daf07b337f822e7bc1d62ade33",
-      "approved_source_hashes": [],
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Effective write guard: server/routes/lp-reporting/imports.ts:573 requireWriteRole(TEAM_WRITE_ROLES), :578 enforceProvidedFundScope(forWrite), :579 enforceTeamWriteRole, before the existing limiters and handler. auth_roles admin/analyst/partner derive from the inline guard. Unit role matrix (tests/unit/routes/lp-reporting/imports-routes.test.ts) covers this route: lp, service, LP-linked team roles and ungranted team users get 403 with no side effect. The shared parseWriteFundId helper returns 400 for an invalid fund ID (unit-tested on ledger/dry-run). Integration (valuation-mark-commit-http.pg.test.ts, makeApp and createServer): lp and ungranted team users are denied with zero ledger rows; a granted analyst writes one row.",
+      "contract_fingerprint": "5f244e02616a195d2353114cb7f87b32da27c07cc87622d7602a0d47a787cd2b",
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -77054,6 +77206,7 @@
       "interface": "http-api",
       "personas": [
         "admin",
+        "analyst",
         "gp"
       ],
       "reachability": "vercel",
@@ -77506,10 +77659,19 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
-      "contract_fingerprint": "14cc72e7995314bcb8191221aba7284e6be7a5d926286688f375a50e136d3f10",
-      "approved_source_hashes": [],
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Effective write guard: server/routes/lp-reporting/imports.ts:479 requireWriteRole(TEAM_WRITE_ROLES), :484 enforceProvidedFundScope(forWrite), :485 enforceTeamWriteRole, before the existing limiters and handler. auth_roles admin/analyst/partner derive from the inline guard. Unit role matrix (tests/unit/routes/lp-reporting/imports-routes.test.ts) covers this route: lp, service, LP-linked team roles and ungranted team users get 403 with no side effect. The shared parseWriteFundId helper returns 400 for an invalid fund ID (unit-tested on ledger/dry-run). No integration test exercises this route; behavioral proof is the unit role matrix.",
+      "contract_fingerprint": "603c5a777bba6a71c5ede2c214df8b05c7e214e4f2b5c3bed48c92e9df58b734",
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -77541,6 +77703,7 @@
       "interface": "http-api",
       "personas": [
         "admin",
+        "analyst",
         "gp"
       ],
       "reachability": "vercel",
@@ -77993,10 +78156,19 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
-      "contract_fingerprint": "26b4c05104bed8a7f5bd0ad973266ce4de19f257b12835b8ef5902cb38f9231e",
-      "approved_source_hashes": [],
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Effective write guard: server/routes/lp-reporting/imports.ts:752 requireWriteRole(TEAM_WRITE_ROLES), :757 enforceProvidedFundScope(forWrite), :758 enforceTeamWriteRole, before the existing limiters and handler. auth_roles admin/analyst/partner derive from the inline guard. Unit role matrix (tests/unit/routes/lp-reporting/imports-routes.test.ts) covers this route: lp, service, LP-linked team roles and ungranted team users get 403 with no side effect. The shared parseWriteFundId helper returns 400 for an invalid fund ID (unit-tested on ledger/dry-run). No integration test exercises this route; behavioral proof is the unit role matrix.",
+      "contract_fingerprint": "a6c5fbe5c62a31efeea8b47451a23eb0c5e6913b997ad68f6becde69296da883",
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -78028,6 +78200,7 @@
       "interface": "http-api",
       "personas": [
         "admin",
+        "analyst",
         "gp"
       ],
       "reachability": "vercel",
@@ -78480,10 +78653,19 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
-      "contract_fingerprint": "a151d2dcd2babfa0e4a346ef27136ce048540adb08dfb0e06be25dc56f9dff23",
-      "approved_source_hashes": [],
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Effective write guard: server/routes/lp-reporting/imports.ts:620 requireWriteRole(TEAM_WRITE_ROLES), :625 enforceProvidedFundScope(forWrite), :626 enforceTeamWriteRole, before the existing limiters and handler. auth_roles admin/analyst/partner derive from the inline guard. Unit role matrix (tests/unit/routes/lp-reporting/imports-routes.test.ts) covers this route: lp, service, LP-linked team roles and ungranted team users get 403 with no side effect. The shared parseWriteFundId helper returns 400 for an invalid fund ID (unit-tested on ledger/dry-run). Integration (valuation-mark-commit-http.pg.test.ts, makeApp and createServer): signed lp and service and foreign-fund team users are denied with no durable write; team roles persist the verified actor.",
+      "contract_fingerprint": "cf45971b2354dccd12d4786378d9466d90db34e8439788c2e329846a19109c78",
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -78515,6 +78697,7 @@
       "interface": "http-api",
       "personas": [
         "admin",
+        "analyst",
         "gp"
       ],
       "reachability": "vercel",
@@ -78967,10 +79150,19 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
-      "contract_fingerprint": "3342424dd556e6b6372c088823a4186e8cf29db5eff5fc88ac9227abeb96b323",
-      "approved_source_hashes": [],
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Effective write guard: server/routes/lp-reporting/imports.ts:526 requireWriteRole(TEAM_WRITE_ROLES), :531 enforceProvidedFundScope(forWrite), :532 enforceTeamWriteRole, before the existing limiters and handler. auth_roles admin/analyst/partner derive from the inline guard. Unit role matrix (tests/unit/routes/lp-reporting/imports-routes.test.ts) covers this route: lp, service, LP-linked team roles and ungranted team users get 403 with no side effect. The shared parseWriteFundId helper returns 400 for an invalid fund ID (unit-tested on ledger/dry-run). No integration test exercises this route; behavioral proof is the unit role matrix.",
+      "contract_fingerprint": "df9ba09656678a63d969a71fc639441674629fe8a5984be66ba0436222c3718c",
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -88738,6 +88930,7 @@
       "interface": "http-api",
       "personas": [
         "admin",
+        "analyst",
         "gp"
       ],
       "reachability": "vercel",
@@ -89190,10 +89383,19 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
-      "contract_fingerprint": "1b86fa83f1669af6e0ccc90c46ce2714537d345b8b77cb0885a3c5b7142a7d30",
-      "approved_source_hashes": [],
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Effective write guard: server/routes/lp-reporting/imports.ts:927 requireWriteRole(TEAM_WRITE_ROLES), :932 enforceProvidedFundScope(forWrite), :933 enforceTeamWriteRole, before the existing limiters and handler. auth_roles admin/analyst/partner derive from the inline guard. Unit role matrix (tests/unit/routes/lp-reporting/imports-routes.test.ts) covers this route: lp, service, LP-linked team roles and ungranted team users get 403 with no side effect. The shared parseWriteFundId helper returns 400 for an invalid fund ID (unit-tested on ledger/dry-run). Integration (valuation-mark-commit-http.pg.test.ts, makeApp and createServer): a case from another fund returns 404 and the row is unchanged.",
+      "contract_fingerprint": "014db564f8d9dc1ed4c4292c57f7fd23dfcf58c2cecf3811b1c0f14bad53853e",
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -89225,6 +89427,7 @@
       "interface": "http-api",
       "personas": [
         "admin",
+        "analyst",
         "gp"
       ],
       "reachability": "vercel",
@@ -89677,10 +89880,19 @@
       "classification": "classified",
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
-      "decision_status": "proposed",
-      "decision_evidence": "independent-scoped-review:pr1708-onboarding-scoped-review;source=d43d4e89ccc226e8d75ed3d29812042901a33571;reviewer=codex-pr-test-analyzer/test_shape;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=This route handler, middleware, mount, classification and contract fingerprint are unchanged. The shared imports source hash changed because the separate main-fund POST corrects its typed refusal response fields. Derived test evidence refreshes the test file hash without changing assertion claims.",
-      "contract_fingerprint": "358efef48387249c9a51cb2ff023dc5d1a8ed6661b496d06764a75cd1a94ce00",
-      "approved_source_hashes": [],
+      "decision_status": "approved",
+      "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Effective write guard: server/routes/lp-reporting/imports.ts:976 requireWriteRole(TEAM_WRITE_ROLES), :981 enforceProvidedFundScope(forWrite), :982 enforceTeamWriteRole, before the existing limiters and handler. auth_roles admin/analyst/partner derive from the inline guard. Unit role matrix (tests/unit/routes/lp-reporting/imports-routes.test.ts) covers this route: lp, service, LP-linked team roles and ungranted team users get 403 with no side effect. The shared parseWriteFundId helper returns 400 for an invalid fund ID (unit-tested on ledger/dry-run). Integration (valuation-mark-commit-http.pg.test.ts, makeApp and createServer): a foreign case gets a per-item 404 and is unchanged; the same-fund item keeps its per-item outcome.",
+      "contract_fingerprint": "8e333d5d0611f03b78207e3e9b784739bd6c6a3fc7aa1125a78834fc7b8b7f19",
+      "approved_source_hashes": [
+        "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
+        "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
+        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
+        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
+        "server/routes/lp-reporting/imports.ts=1263ae7e9082d1c0dcec4e0c22dbeaa7905dd1039a293213cfe5823fcf14cfd0",
+        "server/server.ts=07ef01ef43b1b564d2e86550361ece25204db07891bc9b8c40441c6b90f9b61d",
+        "shared/auth/effective-roles.ts=57a54d410368efd835228e14ed10297a3ffc96edfb17ef690f60583ff67cebd4"
+      ],
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
@@ -116663,52 +116875,52 @@
     "api:GET:/api/funds/:fundId/financial-facts/latest-reference|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "d994d44436d81826d5a09e4e1d2a1a96efdcaf587ba2f4475de9a52ab180524a",
-      "evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;api:GET:/api/funds/:fundId/financial-facts/latest-reference|local-process|create_server: no confirmed runtime-specific test assertion admitted by this review; origin/main carried a none-reviewed attestation for this obligation."
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:GET:/api/funds/:fundId/financial-facts/latest-reference|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "d994d44436d81826d5a09e4e1d2a1a96efdcaf587ba2f4475de9a52ab180524a",
-      "evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;api:GET:/api/funds/:fundId/financial-facts/latest-reference|vercel-api|make_app: no confirmed runtime-specific test assertion admitted by this review; origin/main carried a none-reviewed attestation for this obligation."
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "50c5b943a99b202251110ee99d45ecd29f89c44e7804832869d605da141d318d",
-      "evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;api:GET:/api/funds/:fundId/imports/actuals/draft-revisions|local-process|create_server: no confirmed runtime-specific test assertion admitted by this review; origin/main carried a none-reviewed attestation for this obligation."
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "50c5b943a99b202251110ee99d45ecd29f89c44e7804832869d605da141d318d",
-      "evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;api:GET:/api/funds/:fundId/imports/actuals/draft-revisions|vercel-api|make_app: no confirmed runtime-specific test assertion admitted by this review; origin/main carried a none-reviewed attestation for this obligation."
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "f8a15ca41b45af55f9ad5738d97e778a650ff3202fb56bbff3cb1cacb31f063b",
-      "evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision|local-process|create_server: no confirmed runtime-specific test assertion admitted by this review; origin/main carried a none-reviewed attestation for this obligation."
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "f8a15ca41b45af55f9ad5738d97e778a650ff3202fb56bbff3cb1cacb31f063b",
-      "evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;api:GET:/api/funds/:fundId/imports/actuals/draft-revisions/:revision|vercel-api|make_app: no confirmed runtime-specific test assertion admitted by this review; origin/main carried a none-reviewed attestation for this obligation."
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:GET:/api/funds/:fundId/imports/actuals/restatements/history|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "29c71a7c00b0a9bfccd38fbfa2f7bcd2adce056da931a4a76d0ba9920b503b9e",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:GET:/api/funds/:fundId/imports/actuals/restatements/history|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "29c71a7c00b0a9bfccd38fbfa2f7bcd2adce056da931a4a76d0ba9920b503b9e",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "591eab3df937215d336a848ca405b2501a9c338501be4d7fc53971b45dff0b59",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:GET:/api/funds/:fundId/imports/actuals/restatements/targets|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "591eab3df937215d336a848ca405b2501a9c338501be4d7fc53971b45dff0b59",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:GET:/api/funds/:fundId/internal-analysis/drafts|local-process|create_server": {
       "test_coverage": "none-reviewed",
@@ -117918,52 +118130,52 @@
     "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "93775c1c244ca83b33ad77d14a44b6198f0ea8ffdb778dda9b85eb1b2a430347",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:POST:/api/funds/:fundId/imports/actuals/draft-revisions|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "93775c1c244ca83b33ad77d14a44b6198f0ea8ffdb778dda9b85eb1b2a430347",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:POST:/api/funds/:fundId/imports/actuals/dry-run|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "f33c7166404ff090880359455ecbf6d537d8573e719056379eeb3def69e55204",
-      "evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;api:POST:/api/funds/:fundId/imports/actuals/dry-run|local-process|create_server: no confirmed runtime-specific test assertion admitted by this review; origin/main carried a none-reviewed attestation for this obligation."
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:POST:/api/funds/:fundId/imports/actuals/dry-run|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "f33c7166404ff090880359455ecbf6d537d8573e719056379eeb3def69e55204",
-      "evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;api:POST:/api/funds/:fundId/imports/actuals/dry-run|vercel-api|make_app: no confirmed runtime-specific test assertion admitted by this review; origin/main carried a none-reviewed attestation for this obligation."
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:POST:/api/funds/:fundId/imports/actuals/publish|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "00792d37252403e255ca3f5589c119f076d0270c2cb5adccb074b62b6c41327f",
-      "evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;api:POST:/api/funds/:fundId/imports/actuals/publish|local-process|create_server: no confirmed runtime-specific test assertion admitted by this review; origin/main carried a none-reviewed attestation for this obligation."
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:POST:/api/funds/:fundId/imports/actuals/publish|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "00792d37252403e255ca3f5589c119f076d0270c2cb5adccb074b62b6c41327f",
-      "evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;api:POST:/api/funds/:fundId/imports/actuals/publish|vercel-api|make_app: no confirmed runtime-specific test assertion admitted by this review; origin/main carried a none-reviewed attestation for this obligation."
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "d6182a27d1b10c255a96d8deb6d26d34a2d40f197681acb112fd7eae80b28d5b",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:POST:/api/funds/:fundId/imports/actuals/restatements/dry-run|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "d6182a27d1b10c255a96d8deb6d26d34a2d40f197681acb112fd7eae80b28d5b",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish|local-process|create_server": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "6b49b01c60cbd8b3d3a01a576279d738a11a324966ab83c212d428c392ec4808",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:POST:/api/funds/:fundId/imports/actuals/restatements/publish|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "6b49b01c60cbd8b3d3a01a576279d738a11a324966ab83c212d428c392ec4808",
-      "evidence": "native-codex-independent-review:/root/independent_scoped_review;source=23cd26b8529fe0de4f8f87099f30beb52593e211;evidence=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/independent-source-review.md;sha256=4dda33fff51f707ef429846307d334ab1e2ffb5b788cbf45922f180f69224957;tests=/Users/nikhil/.codex/task-artifacts/pr1617-ci-20261002/behavior-tests.log:3-files-32-tests-passed;owner-approval=direct-user-Approved-2026-10-02"
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     },
     "api:POST:/api/funds/:fundId/internal-analysis/drafts|local-process|create_server": {
       "test_coverage": "none-reviewed",
@@ -119724,6 +119936,146 @@
       "test_coverage": "none-reviewed",
       "contract_fingerprint": "7a7d279914166e87d0bfce3afc13b70a601aa2c687fb463e0f54785a4585498c",
       "evidence": "scoped-review:f1240-pilot-main-fund-onboarding-20261116;source=875811596b15e27cf4a157cb03ef41f5c26ab757;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);new-row-semantics=carried-from-codex-organizer-independent-review-20261104@56d98f0a5;route-middleware-auth-chain-unchanged;handler-adds-redacted-failure-log;f1241-review-fixes-codex-code-review-approved-20261116;approver=nikhillinit;scope=152-rows-255-exposure-attestations-one-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;no-merge-push-provider-deployment-authority;api:PUT:/api/funds/:id/draft|vercel-api|make_app: no confirmed runtime-specific test assertion admitted by this review; origin/main carried a none-reviewed attestation for this obligation."
+    },
+    "api:GET:/api/funds/:fundId/actuals/metrics|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "b70365815d0cdfbf7c63044eb410b83fb6343b89a980a988c940da153cb8b243",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:GET:/api/funds/:fundId/actuals/metrics|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "b70365815d0cdfbf7c63044eb410b83fb6343b89a980a988c940da153cb8b243",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:GET:/api/funds/:fundId/imports/batches/:batchId|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "22b11b8234762ccb2afdbd1c9fda24b66b0f519f71773b698660638616e646fc",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:GET:/api/funds/:fundId/imports/batches/:batchId|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "22b11b8234762ccb2afdbd1c9fda24b66b0f519f71773b698660638616e646fc",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:GET:/api/funds/:fundId/reconciliation/cases|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "52f19db94d32b3b46862d3ea78b3650428cee6c9fb90297625d9ce22acd6897a",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:GET:/api/funds/:fundId/reconciliation/cases|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "52f19db94d32b3b46862d3ea78b3650428cee6c9fb90297625d9ce22acd6897a",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/actuals/main-fund|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "1244d1b03d957f6195771bf7c409cdb335cd4560e335d087220473df6de28bfb",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/actuals/main-fund|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "1244d1b03d957f6195771bf7c409cdb335cd4560e335d087220473df6de28bfb",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/artifacts|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "77a771f8da26cd138dd800eda3f9123faa9e58e7d296cfd4499464c9b4058c6d",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/artifacts|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "77a771f8da26cd138dd800eda3f9123faa9e58e7d296cfd4499464c9b4058c6d",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/batches|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "8534c6503735efd1c284d5313ba538d784582c02fff8c7e0455890a492860a1e",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/batches|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "8534c6503735efd1c284d5313ba538d784582c02fff8c7e0455890a492860a1e",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "3ddf4300b4a5144fec0ab33f617efc1067f3e278c250cf7e10af5db86c92b177",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/batches/:batchId/commit|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "3ddf4300b4a5144fec0ab33f617efc1067f3e278c250cf7e10af5db86c92b177",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/ledger/commit|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "5f244e02616a195d2353114cb7f87b32da27c07cc87622d7602a0d47a787cd2b",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/ledger/commit|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "5f244e02616a195d2353114cb7f87b32da27c07cc87622d7602a0d47a787cd2b",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/ledger/dry-run|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "603c5a777bba6a71c5ede2c214df8b05c7e214e4f2b5c3bed48c92e9df58b734",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/ledger/dry-run|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "603c5a777bba6a71c5ede2c214df8b05c7e214e4f2b5c3bed48c92e9df58b734",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/mapping-profiles|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "a6c5fbe5c62a31efeea8b47451a23eb0c5e6913b997ad68f6becde69296da883",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/mapping-profiles|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "a6c5fbe5c62a31efeea8b47451a23eb0c5e6913b997ad68f6becde69296da883",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/valuation-marks/commit|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "cf45971b2354dccd12d4786378d9466d90db34e8439788c2e329846a19109c78",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/valuation-marks/commit|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "cf45971b2354dccd12d4786378d9466d90db34e8439788c2e329846a19109c78",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/valuation-marks/dry-run|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "df9ba09656678a63d969a71fc639441674629fe8a5984be66ba0436222c3718c",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/imports/valuation-marks/dry-run|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "df9ba09656678a63d969a71fc639441674629fe8a5984be66ba0436222c3718c",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/reconciliation/cases/:caseId/resolve|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "014db564f8d9dc1ed4c4292c57f7fd23dfcf58c2cecf3811b1c0f14bad53853e",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/reconciliation/cases/:caseId/resolve|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "014db564f8d9dc1ed4c4292c57f7fd23dfcf58c2cecf3811b1c0f14bad53853e",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/reconciliation/cases/bulk-resolve|local-process|create_server": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "8e333d5d0611f03b78207e3e9b784739bd6c6a3fc7aa1125a78834fc7b8b7f19",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
+    },
+    "api:POST:/api/funds/:fundId/reconciliation/cases/bulk-resolve|vercel-api|make_app": {
+      "test_coverage": "none-reviewed",
+      "contract_fingerprint": "8e333d5d0611f03b78207e3e9b784739bd6c6a3fc7aa1125a78834fc7b8b7f19",
+      "evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;runtime-exposures=none-reviewed;vercel-function-boot=unproven-local-recipe;row-verdict-in-decision-evidence"
     }
   },
   "g1_closure": {
@@ -120009,6 +120361,47 @@
         "api:POST:/api/portfolio/strategies",
         "api:PUT:/api/portfolio/strategies/:id"
       ]
+    }
+  },
+  "validation": {
+    "passed": true,
+    "kg": {
+      "snapshot_id": "snapshot:1d8b5c13571acbca3b93abf8d78ac5493ce135375c4701900eef1b6fcfae74bd",
+      "counts": {
+        "APIEndpoint": 416,
+        "ClientRoute": 44,
+        "WorkerJob": 7
+      }
+    },
+    "scheduler_registrations": [
+      {
+        "id": "varianceAlertAutomationService",
+        "site": "server/routes.ts:60"
+      },
+      {
+        "id": "artifactRetentionService",
+        "site": "server/routes.ts:62"
+      },
+      {
+        "id": "internalAnalysisCheckpointService",
+        "site": "server/routes.ts:64"
+      }
+    ],
+    "discovery": {
+      "listener_candidates": 14,
+      "dormant_candidates": 28,
+      "bullmq_constructors": 16
+    },
+    "requirement_match_counts": {
+      "current-forecast-commands": 7,
+      "fee-catch-up-ui": 1,
+      "subannual-flow-fee": 3,
+      "cashless-gp-lp-class": 2,
+      "wave-h": 1,
+      "wp-l4": 0,
+      "kpi-manager": 7,
+      "pages-v2": 8,
+      "docker-only": 60
     }
   }
 }
