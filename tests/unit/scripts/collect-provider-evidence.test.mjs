@@ -5,6 +5,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import process from 'node:process';
 import { promisify } from 'node:util';
+import { URL } from 'node:url';
 
 import { collectProviderEvidence } from '../../../scripts/release/collect-provider-evidence.mjs';
 
@@ -81,10 +82,29 @@ function makeFetch({
   deployment = vercelDeployment(),
   versionBody = version(),
   aliasesBody = LIVE_ALIASES,
+  postureProject = { ssoProtection: { deploymentType: 'all' } },
+  domainsResponse = { domains: [] },
+  canonicalDeployment = { ...vercelDeployment(), id: 'dpl_canonical' },
+  canonicalAliasesBody = { aliases: [{ alias: 'production.example.com' }] },
+  probe = () => ({ status: 401, location: null }),
 } = {}) {
   return vi.fn(async (url, options) => {
-    if (url.includes('/v13/deployments/')) return { ok: true, json: async () => deployment };
-    if (url.includes('/v2/deployments/')) return { ok: true, json: async () => aliasesBody };
+    if (url.includes('/v9/projects/') && url.includes('/domains?')) return { ok: true, json: async () => domainsResponse };
+    if (url.includes('/v9/projects/')) return { ok: true, json: async () => postureProject };
+    if (url.includes('/v13/deployments/')) {
+      return { ok: true, json: async () => url.includes('production.example.com') ? canonicalDeployment : deployment };
+    }
+    if (url.includes('/v2/deployments/')) {
+      return { ok: true, json: async () => url.includes('dpl_canonical') ? canonicalAliasesBody : aliasesBody };
+    }
+    if (url.includes('/api/health')) {
+      const result = probe(new URL(url).hostname);
+      return {
+        status: result.status,
+        headers: { get: (name) => name === 'location' ? result.location : null },
+        body: { cancel: vi.fn(async () => {}) },
+      };
+    }
     if (url.endsWith('/api/version')) return { ok: true, json: async () => versionBody };
     const payload = JSON.parse(options.body);
     if (payload.query.includes('projectToken')) {
@@ -102,13 +122,14 @@ function setEnvironment() {
     ...TOKENS,
     VERCEL_ORG_ID: 'vercel-org',
     VERCEL_PROJECT_ID: 'vercel-project',
+    VERCEL_PRODUCTION_HOSTNAME: 'Production.Example.com',
   })) {
     process.env[key] = value;
   }
 }
 
 afterEach(() => {
-  for (const key of [...Object.keys(TOKENS), 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID']) {
+  for (const key of [...Object.keys(TOKENS), 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID', 'VERCEL_PRODUCTION_HOSTNAME']) {
     delete process.env[key];
   }
 });
@@ -161,6 +182,111 @@ describe('collect-provider-evidence', () => {
     expect(result.railwayEvidence.services).toHaveLength(2);
     expect(JSON.parse(writes[0].body)).toEqual(result.vercelEvidence);
     expect(JSON.parse(writes[1].body)).toEqual(result.railwayEvidence);
+  });
+
+  it('collects opt-in posture without exposing bypass keys or probe query strings', { retry: 0 }, async () => {
+    setEnvironment();
+    const bypassKey = 'fixture-protection-bypass-secret';
+    const fetchImpl = makeFetch({
+      postureProject: {
+        ssoProtection: { deploymentType: 'all' },
+        passwordProtection: { deploymentType: 'all' },
+        trustedIps: null,
+        protectionBypass: {
+          [bypassKey]: { scope: 'preview' },
+          anotherSecret: { scope: 'automation' },
+          thirdSecret: { scope: 'preview' },
+        },
+      },
+      domainsResponse: {
+        pagination: { next: null },
+        domains: [
+          { name: 'HTTPS://WWW.Example.com/ignored' },
+          { name: 'www.example.com' },
+          { name: 'custom.example.com' },
+        ],
+      },
+      canonicalAliasesBody: { aliases: [{ alias: 'https://production.example.com/path' }] },
+      probe: () => ({ status: 302, location: 'https://vercel.com/sso-api?nonce=private&return=%2F' }),
+    });
+    const writes = [];
+    const result = await collectProviderEvidence({
+      deploymentUrl: 'https://candidate.vercel.app',
+      outputDirectory: '/tmp/provider-evidence-run-posture',
+      accessPosture: true,
+      fetchImpl,
+      writeFileImpl: vi.fn(async (path, body) => writes.push({ path, body })),
+    });
+    const posture = {
+      deploymentType: 'all',
+      passwordProtection: { enabled: true, deploymentType: 'all' },
+      trustedIps: { enabled: false, deploymentType: null },
+      bypass: { count: 3, scopes: ['automation', 'preview'] },
+      hostnames: ['custom.example.com', 'production.example.com', 'www.example.com'],
+      probes: [
+        'custom.example.com', 'production.example.com', 'www.example.com',
+      ].map((hostname) => ({
+        hostname,
+        status: 302,
+        redirectHost: 'vercel.com',
+        redirectPathPrefix: '/sso-api',
+      })),
+    };
+    expect(result.accessPosture).toEqual(posture);
+    expect(writes.map(({ path }) => path)).toEqual([
+      '/tmp/provider-evidence-run-posture/vercel-evidence.json',
+      '/tmp/provider-evidence-run-posture/railway-evidence.json',
+      '/tmp/provider-evidence-run-posture/vercel-access-posture.json',
+    ]);
+    const emitted = `${JSON.stringify(result)}\n${writes.map(({ body }) => body).join('\n')}`;
+    expect(emitted).not.toContain(bypassKey);
+    expect(emitted).not.toContain('anotherSecret');
+    expect(emitted).not.toContain('private');
+    const probes = fetchImpl.mock.calls.filter(([url]) => url.includes('/api/health'));
+    expect(probes).toHaveLength(3);
+    for (const [, options] of probes) {
+      expect(options).toMatchObject({ method: 'GET', redirect: 'manual' });
+      expect(options).not.toHaveProperty('headers');
+    }
+    expect(fetchImpl.mock.calls.some(([url]) => url.includes('/v9/projects/vercel-project?teamId=vercel-org'))).toBe(true);
+    expect(fetchImpl.mock.calls.some(([url]) => url.includes('/v9/projects/vercel-project/domains?teamId=vercel-org&limit=100'))).toBe(true);
+  });
+
+  it('requires production hostname only when posture collection is enabled', { retry: 0 }, async () => {
+    setEnvironment();
+    delete process.env.VERCEL_PRODUCTION_HOSTNAME;
+    const fetchImpl = vi.fn();
+    await expect(collectProviderEvidence({
+      deploymentUrl: 'https://candidate.vercel.app',
+      outputDirectory: '/tmp/provider-evidence-run-123',
+      accessPosture: true,
+      fetchImpl,
+      writeFileImpl: vi.fn(),
+    })).rejects.toThrow(/VERCEL_PRODUCTION_HOSTNAME is required/);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['paginated domains', makeFetch({ domainsResponse: { pagination: { next: 'cursor' }, domains: [] } })],
+    ['malformed domains', makeFetch({ domainsResponse: { pagination: { next: null } } })],
+    ['foreign canonical project', makeFetch({
+      canonicalDeployment: { ...vercelDeployment(), id: 'dpl_canonical', projectId: 'other-project' },
+    })],
+    ['probe transport failure', vi.fn(async (url, options) => {
+      if (url.includes('/api/health')) throw new Error('private host failure');
+      return makeFetch()(url, options);
+    })],
+  ])('fails closed for posture %s', { retry: 0 }, async (_label, fetchImpl) => {
+    setEnvironment();
+    const writeFileImpl = vi.fn();
+    await expect(collectProviderEvidence({
+      deploymentUrl: 'https://candidate.vercel.app',
+      outputDirectory: '/tmp/provider-evidence-run-123',
+      accessPosture: true,
+      fetchImpl,
+      writeFileImpl,
+    })).rejects.toThrow(/Provider evidence/);
+    expect(writeFileImpl).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -300,6 +426,31 @@ describe('collect-provider-evidence', () => {
       ], { env: traversalEnvironment }).catch((error) => error);
       expect(traversalResult.code).not.toBe(0);
       await expect(lstat(path.join(root, `${TOKENS.RAILWAY_TOKEN}-x`))).rejects.toMatchObject({ code: 'ENOENT' });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('CLI accepts bare posture flag and requires its hostname', { retry: 0 }, async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'collect-posture-cli-'));
+    try {
+      const outputDirectory = path.join(root, 'evidence');
+      const cliEnvironment = {
+        ...process.env,
+        ...TOKENS,
+        VERCEL_ORG_ID: 'vercel-org',
+        VERCEL_PROJECT_ID: 'vercel-project',
+      };
+      delete cliEnvironment.VERCEL_PRODUCTION_HOSTNAME;
+      const result = await execFileAsync(process.execPath, [
+        CLI_PATH,
+        '--deployment-url', 'https://candidate.vercel.app',
+        '--output-dir', outputDirectory,
+        '--access-posture',
+      ], { env: cliEnvironment }).catch((error) => error);
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toMatch(/Provider evidence collection failed/);
+      expect((await lstat(outputDirectory)).isDirectory()).toBe(true);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

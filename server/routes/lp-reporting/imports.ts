@@ -10,9 +10,9 @@
  *   POST /api/funds/:fundId/imports/ledger/commit
  *   POST /api/funds/:fundId/imports/valuation-marks/commit
  *
- * Middleware chain (existing primitives only):
- *   requireAuth() -> requireFundAccess -> rateLimit(20/hour/user)
- *   -> handler
+ * Read routes retain requireFundAccess. Import writes use requireAuth(),
+ * requireWriteRole(TEAM_WRITE_ROLES), explicit write-fund scope, and the
+ * team-write guard before their existing limiter and handler.
  *
  * Dry-run body: JSON `{ sourceType: "csv" | "notion", payload: <base64> }`.
  * Commit body adds `previewHash`.
@@ -28,10 +28,13 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
-import { requireAuth, requireFundAccess } from '../../lib/auth/jwt';
+import { requireAuth, requireFundAccess, requireWriteRole } from '../../lib/auth/jwt';
+import { enforceProvidedFundScope, enforceTeamWriteRole } from '../../lib/auth/provided-fund-scope';
 import { requireActualsPilotGrant } from '../../lib/auth/actuals-pilot-grant';
 import { logger } from '../../lib/logger';
 import { firstString } from '../../lib/request-values';
+import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
+import { parseFundIdParam } from '@shared/number';
 import {
   ImportCommitRequestSchema,
   ImportCommitResponseSchema,
@@ -201,6 +204,18 @@ const actualsRestatementReadQuerySchema = z
   })
   .strict()
   .pipe(ActualsRestatementReadRequestV1Schema.required({ limit: true }));
+
+function parseWriteFundId(req: Request, res: Response): number | null {
+  const fundIdParam = firstString(req.params['fundId']);
+  const fundId = parseFundIdParam(fundIdParam);
+  if (fundId === null) {
+    res.status(400).json({
+      error: 'Bad Request',
+      message: fundIdParam ? 'Invalid fund ID' : 'Fund ID is required',
+    });
+  }
+  return fundId;
+}
 
 const valuationMarkImportBodySchema = ImportDryRunRequestSchema.extend({
   sourceType: z.literal('csv'),
@@ -461,7 +476,17 @@ function terminalHeadError(
 router.post(
   '/api/funds/:fundId/imports/ledger/dry-run',
   requireAuth(),
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const fundId = parseWriteFundId(req, res);
+    if (
+      fundId !== null &&
+      (await enforceProvidedFundScope(req, res, fundId, { forWrite: true })) &&
+      enforceTeamWriteRole(req, res)
+    ) {
+      next();
+    }
+  },
   importLimiter,
   async (req: Request, res: Response) => {
     const parsedBody = ImportDryRunRequestSchema.safeParse(req.body);
@@ -498,7 +523,17 @@ router.post(
 router.post(
   '/api/funds/:fundId/imports/valuation-marks/dry-run',
   requireAuth(),
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const fundId = parseWriteFundId(req, res);
+    if (
+      fundId !== null &&
+      (await enforceProvidedFundScope(req, res, fundId, { forWrite: true })) &&
+      enforceTeamWriteRole(req, res)
+    ) {
+      next();
+    }
+  },
   importLimiter,
   async (req: Request, res: Response) => {
     const parsedBody = valuationMarkImportBodySchema.safeParse(req.body);
@@ -535,7 +570,17 @@ router.post(
 router.post(
   '/api/funds/:fundId/imports/ledger/commit',
   requireAuth(),
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const fundId = parseWriteFundId(req, res);
+    if (
+      fundId !== null &&
+      (await enforceProvidedFundScope(req, res, fundId, { forWrite: true })) &&
+      enforceTeamWriteRole(req, res)
+    ) {
+      next();
+    }
+  },
   importLimiter,
   async (req: Request, res: Response) => {
     const parsedBody = ImportCommitRequestSchema.safeParse(req.body);
@@ -572,7 +617,17 @@ router.post(
 router.post(
   '/api/funds/:fundId/imports/valuation-marks/commit',
   requireAuth(),
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const fundId = parseWriteFundId(req, res);
+    if (
+      fundId !== null &&
+      (await enforceProvidedFundScope(req, res, fundId, { forWrite: true })) &&
+      enforceTeamWriteRole(req, res)
+    ) {
+      next();
+    }
+  },
   importLimiter,
   async (req: Request, res: Response) => {
     const parsedBody = valuationMarkCommitBodySchema.safeParse(req.body);
@@ -609,7 +664,17 @@ router.post(
 router.post(
   '/api/funds/:fundId/imports/artifacts',
   requireAuth(),
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const fundId = parseWriteFundId(req, res);
+    if (
+      fundId !== null &&
+      (await enforceProvidedFundScope(req, res, fundId, { forWrite: true })) &&
+      enforceTeamWriteRole(req, res)
+    ) {
+      next();
+    }
+  },
   importArtifactLimiter,
   async (req: Request, res: Response) => {
     const parsedIdempotencyKey = parseIdempotencyKey(req);
@@ -684,7 +749,17 @@ router.post(
 router.post(
   '/api/funds/:fundId/imports/mapping-profiles',
   requireAuth(),
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const fundId = parseWriteFundId(req, res);
+    if (
+      fundId !== null &&
+      (await enforceProvidedFundScope(req, res, fundId, { forWrite: true })) &&
+      enforceTeamWriteRole(req, res)
+    ) {
+      next();
+    }
+  },
   importArtifactLimiter,
   async (req: Request, res: Response) => {
     const parsedIdempotencyKey = parseIdempotencyKey(req);
@@ -751,7 +826,17 @@ router.post(
   '/api/funds/:fundId/imports/batches',
   importIngressLimiter,
   requireAuth(),
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const fundId = parseWriteFundId(req, res);
+    if (
+      fundId !== null &&
+      (await enforceProvidedFundScope(req, res, fundId, { forWrite: true })) &&
+      enforceTeamWriteRole(req, res)
+    ) {
+      next();
+    }
+  },
   importArtifactLimiter,
   async (req: Request, res: Response) => {
     const parsedIdempotencyKey = parseIdempotencyKey(req);
@@ -839,7 +924,17 @@ router.post(
   '/api/funds/:fundId/reconciliation/cases/:caseId/resolve',
   importIngressLimiter,
   requireAuth(),
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const fundId = parseWriteFundId(req, res);
+    if (
+      fundId !== null &&
+      (await enforceProvidedFundScope(req, res, fundId, { forWrite: true })) &&
+      enforceTeamWriteRole(req, res)
+    ) {
+      next();
+    }
+  },
   importArtifactLimiter,
   requireIfMatch(),
   async (req: Request, res: Response) => {
@@ -878,7 +973,17 @@ router.post(
   '/api/funds/:fundId/reconciliation/cases/bulk-resolve',
   importIngressLimiter,
   requireAuth(),
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const fundId = parseWriteFundId(req, res);
+    if (
+      fundId !== null &&
+      (await enforceProvidedFundScope(req, res, fundId, { forWrite: true })) &&
+      enforceTeamWriteRole(req, res)
+    ) {
+      next();
+    }
+  },
   importArtifactLimiter,
   async (req: Request, res: Response) => {
     const parsedBody = BulkResolveRequestSchema.safeParse(req.body);
@@ -907,7 +1012,17 @@ router.post(
   '/api/funds/:fundId/imports/batches/:batchId/commit',
   importIngressLimiter,
   requireAuth(),
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
+  async (req: Request, res: Response, next: NextFunction) => {
+    const fundId = parseWriteFundId(req, res);
+    if (
+      fundId !== null &&
+      (await enforceProvidedFundScope(req, res, fundId, { forWrite: true })) &&
+      enforceTeamWriteRole(req, res)
+    ) {
+      next();
+    }
+  },
   importArtifactLimiter,
   requireIfMatch(),
   async (req: Request, res: Response) => {

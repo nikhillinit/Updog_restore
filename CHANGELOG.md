@@ -22,6 +22,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Security (2026-11-20)
+
+- F_1.3.9 production access posture gate. Both pre-promotion provider checks in
+  `release-production.yml` now collect the production Vercel Authentication
+  posture and fail closed unless the mode is `all` and every inventoried
+  hostname answers an unauthenticated probe with an SSO redirect or 401. The
+  post-promotion smoke sends the automation bypass secret. ADR-117 records the
+  one-time protection change and holds access expansion until the ADR-079
+  write-guard review closes.
+- F_1.3.9 import write guards. The ten LP-reporting import and reconciliation
+  write routes require a team write role, verified write fund scope, and the
+  team-write guard. LP-linked identities, `lp`, `service`, and team users
+  without the fund grant are refused before any limiter or service call. The
+  surface-contract matrix rows are reseeded with a scoped review; owner approval
+  is pending.
+
 ### Planned (2026-11-19)
 
 - F_1.3.8 plan: ninth release vehicle prerequisites and a solo-operator route

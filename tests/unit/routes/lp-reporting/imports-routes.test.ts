@@ -16,11 +16,15 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import request from 'supertest';
 
 import { runLedgerDryRun } from '../../../../server/services/lp-reporting/import-reconciliation-service';
+import * as importReconciliationService from '../../../../server/services/lp-reporting/import-reconciliation-service';
 
 const authState = {
   authenticated: true,
   userId: 7,
+  role: 'analyst',
+  roles: ['analyst'] as string[],
   fundIds: [1, 2] as number[],
+  lpId: undefined as number | undefined,
 };
 let nextUserId = 700;
 
@@ -56,6 +60,15 @@ const importBatchCommitServiceMock = vi.hoisted(() => ({
   commitImportBatch: vi.fn(),
   loadImportBatchStatus: vi.fn(),
 }));
+const batchStagingServiceMock = vi.hoisted(() => ({ stageImportBatch: vi.fn() }));
+const reconciliationCaseServiceMock = vi.hoisted(() => ({
+  bulkResolveCases: vi.fn(),
+  resolveCase: vi.fn(),
+}));
+const importSideEffectMock = vi.hoisted(() => ({
+  recordV1ImportInvocation: vi.fn(),
+  invalidateH9Artifacts: vi.fn(),
+}));
 
 vi.mock('../../../../server/lib/auth/jwt', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../../server/lib/auth/jwt')>()),
@@ -63,35 +76,26 @@ vi.mock('../../../../server/lib/auth/jwt', async (importOriginal) => ({
     if (!authState.authenticated) {
       return res.sendStatus(401);
     }
-    (req as Request & { user?: { id: number; userId: number; fundIds: number[] } }).user = {
+    (
+      req as Request & {
+        user?: {
+          id: number;
+          userId: number;
+          role: string;
+          roles: string[];
+          fundIds: number[];
+          lpId?: number;
+        };
+      }
+    ).user = {
       id: authState.userId,
       userId: authState.userId,
+      role: authState.role,
+      roles: [...authState.roles],
       fundIds: [...authState.fundIds],
+      ...(authState.lpId !== undefined && { lpId: authState.lpId }),
     };
     next();
-  },
-  requireFundAccess: (req: Request, res: Response, next: NextFunction) => {
-    const fundIdParam = req.params['fundId'];
-    if (!fundIdParam) {
-      return res.status(400).json({ error: 'Bad Request' });
-    }
-    const fundId = Number.parseInt(
-      Array.isArray(fundIdParam) ? (fundIdParam[0] ?? '') : fundIdParam,
-      10
-    );
-    if (Number.isNaN(fundId)) {
-      return res.status(400).json({ error: 'Bad Request' });
-    }
-    const user = (req as Request & { user?: { id: number; userId: number; fundIds: number[] } })
-      .user;
-    const userFundIds = user?.fundIds ?? [];
-    if (userFundIds.length === 0) {
-      return next();
-    }
-    if (userFundIds.includes(fundId)) {
-      return next();
-    }
-    return res.status(403).json({ error: 'Forbidden' });
   },
 }));
 
@@ -119,6 +123,34 @@ vi.mock(
   })
 );
 vi.mock(
+  '../../../../server/services/financial-observations/import-batch-staging-service',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../../../../server/services/financial-observations/import-batch-staging-service')
+    >()),
+    stageImportBatch: batchStagingServiceMock.stageImportBatch,
+  })
+);
+vi.mock(
+  '../../../../server/services/financial-observations/reconciliation-case-service',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../../../../server/services/financial-observations/reconciliation-case-service')
+    >()),
+    bulkResolveCases: reconciliationCaseServiceMock.bulkResolveCases,
+    resolveCase: reconciliationCaseServiceMock.resolveCase,
+  })
+);
+vi.mock('../../../../server/services/lp-reporting/v1-import-telemetry', () => ({
+  recordV1ImportInvocation: importSideEffectMock.recordV1ImportInvocation,
+}));
+vi.mock('../../../../server/services/h9-artifact-invalidation-service', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('../../../../server/services/h9-artifact-invalidation-service')
+  >()),
+  invalidateH9Artifacts: importSideEffectMock.invalidateH9Artifacts,
+}));
+vi.mock(
   '../../../../server/services/financial-observations/import-batch-commit-service',
   async (importOriginal) => ({
     ...(await importOriginal<
@@ -144,6 +176,118 @@ const valuationCsvBase64 = fs
   .toString('base64');
 const previewHash = 'a'.repeat(64);
 
+const roleMatrixRoutes = [
+  {
+    method: 'POST',
+    path: '/api/funds/1/imports/ledger/dry-run',
+    body: { sourceType: 'csv', payload: ledgerCsvBase64 },
+    spy: importSideEffectMock.recordV1ImportInvocation,
+  },
+  {
+    method: 'POST',
+    path: '/api/funds/1/imports/valuation-marks/dry-run',
+    body: { sourceType: 'csv', payload: valuationCsvBase64 },
+    spy: importSideEffectMock.recordV1ImportInvocation,
+  },
+  {
+    method: 'POST',
+    path: '/api/funds/1/imports/ledger/commit',
+    body: { sourceType: 'csv', payload: ledgerCsvBase64, previewHash },
+    spy: commitServiceMock.commitLedgerImport,
+  },
+  {
+    method: 'POST',
+    path: '/api/funds/1/imports/valuation-marks/commit',
+    body: { sourceType: 'csv', payload: valuationCsvBase64, previewHash },
+    spy: commitServiceMock.commitValuationMarkImport,
+  },
+  {
+    method: 'POST',
+    path: '/api/funds/1/imports/artifacts',
+    headers: {
+      'Content-Type': 'text/csv',
+      'X-Artifact-Source-Type': 'csv',
+      'Idempotency-Key': 'matrix-artifact',
+    },
+    body: Buffer.from('company,value\nAcme,100\n'),
+    spy: sourceArtifactServiceMock.createSourceArtifact,
+  },
+  {
+    method: 'POST',
+    path: '/api/funds/1/imports/mapping-profiles',
+    headers: { 'Idempotency-Key': 'matrix-profile' },
+    body: {
+      name: 'Quarterly marks',
+      sourceType: 'csv',
+      domain: 'valuation',
+      mappings: [{ sourceColumn: 'Company', targetField: 'company_name', transforms: ['trim'] }],
+      supersedesProfileId: null,
+    },
+    spy: mappingProfileServiceMock.createMappingProfileVersion,
+  },
+  {
+    method: 'POST',
+    path: '/api/funds/1/imports/batches',
+    headers: { 'Idempotency-Key': 'matrix-batch' },
+    body: {
+      contractVersion: 'import-v2',
+      sourceArtifactId: 1,
+      mappingProfileId: 1,
+      dataBasis: 'observed_actual',
+    },
+    spy: batchStagingServiceMock.stageImportBatch,
+  },
+  {
+    method: 'POST',
+    path: '/api/funds/1/reconciliation/cases/1/resolve',
+    headers: { 'If-Match': '"case-v1"' },
+    body: { action: 'create_identity', targetCompanyIdentityId: null, memo: 'matrix decision' },
+    spy: reconciliationCaseServiceMock.resolveCase,
+  },
+  {
+    method: 'POST',
+    path: '/api/funds/1/reconciliation/cases/bulk-resolve',
+    body: {
+      items: [
+        {
+          caseId: 1,
+          ifMatch: '"case-v1"',
+          decision: {
+            action: 'create_identity',
+            targetCompanyIdentityId: null,
+            memo: 'matrix decision',
+          },
+        },
+      ],
+    },
+    spy: reconciliationCaseServiceMock.bulkResolveCases,
+  },
+  {
+    method: 'POST',
+    path: '/api/funds/1/imports/batches/1/commit',
+    headers: { 'If-Match': '"batch-v1"' },
+    body: { previewHash, requestedGroupKeys: ['source-observation:1'] },
+    spy: importBatchCommitServiceMock.commitImportBatch,
+  },
+] as const;
+
+function routeSideEffectSpies() {
+  return [
+    importSideEffectMock.recordV1ImportInvocation,
+    importSideEffectMock.invalidateH9Artifacts,
+    commitServiceMock.commitLedgerImport,
+    commitServiceMock.commitValuationMarkImport,
+    sourceArtifactServiceMock.createSourceArtifact,
+    mappingProfileServiceMock.createMappingProfileVersion,
+    batchStagingServiceMock.stageImportBatch,
+    reconciliationCaseServiceMock.resolveCase,
+    reconciliationCaseServiceMock.bulkResolveCases,
+    importBatchCommitServiceMock.commitImportBatch,
+    vi.mocked(importReconciliationService.runLedgerDryRun),
+    vi.mocked(importReconciliationService.runValuationMarkDryRun),
+  ];
+}
+
 function buildValuationCsvWithFutureMark(): string {
   const futureYear = new Date().getUTCFullYear() + 1;
   return Buffer.from(
@@ -168,7 +312,45 @@ function buildApp(): express.Express {
 beforeEach(() => {
   authState.authenticated = true;
   authState.userId = nextUserId++;
+  authState.role = 'analyst';
+  authState.roles = ['analyst'];
   authState.fundIds = [1, 2];
+  authState.lpId = undefined;
+  batchStagingServiceMock.stageImportBatch.mockResolvedValue({
+    receipt: { batchId: 77 },
+    replayed: false,
+  });
+  reconciliationCaseServiceMock.resolveCase.mockResolvedValue({
+    case: { etag: '"case-v1"' },
+    httpStatus: 200,
+  });
+  reconciliationCaseServiceMock.bulkResolveCases.mockResolvedValue({ results: [] });
+  importBatchCommitServiceMock.commitImportBatch.mockResolvedValue({
+    httpStatus: 200,
+    response: { batch: { etag: '"batch-v1"' } },
+  });
+  commitServiceMock.commitLedgerImport.mockResolvedValue({
+    importBatchId: '11111111-2222-3333-4444-555555555555',
+    previewHash,
+    insertedCount: 0,
+    skippedExistingCount: 0,
+    skippedDuplicateCount: 0,
+    skippedExcludedCount: 0,
+    insertedIds: [],
+  });
+  commitServiceMock.commitValuationMarkImport.mockResolvedValue({
+    importBatchId: '11111111-2222-3333-4444-555555555555',
+    previewHash,
+    insertedCount: 0,
+    skippedExistingCount: 0,
+    skippedDuplicateCount: 0,
+    skippedExcludedCount: 0,
+    insertedIds: [],
+  });
+  vi.spyOn(importReconciliationService, 'runLedgerDryRun');
+  vi.spyOn(importReconciliationService, 'runValuationMarkDryRun');
+  importSideEffectMock.recordV1ImportInvocation.mockReset();
+  importSideEffectMock.invalidateH9Artifacts.mockReset();
   sourceArtifactServiceMock.createSourceArtifact.mockImplementation(
     async (input: {
       fundId: number;
@@ -222,6 +404,82 @@ afterEach(() => {
   mappingProfileServiceMock.createMappingProfileVersion.mockReset();
   importBatchCommitServiceMock.commitImportBatch.mockReset();
   importBatchCommitServiceMock.loadImportBatchStatus.mockReset();
+  batchStagingServiceMock.stageImportBatch.mockReset();
+  reconciliationCaseServiceMock.bulkResolveCases.mockReset();
+  reconciliationCaseServiceMock.resolveCase.mockReset();
+  importSideEffectMock.recordV1ImportInvocation.mockReset();
+  importSideEffectMock.invalidateH9Artifacts.mockReset();
+});
+
+describe('import write role and fund-scope matrix', () => {
+  const allowedActors = [
+    { role: 'admin', fundIds: [] },
+    { role: 'partner', fundIds: [1] },
+    { role: 'analyst', fundIds: [1] },
+  ];
+  const deniedActors = [
+    { role: 'lp', fundIds: [1] },
+    { role: 'service', fundIds: [1] },
+    { role: 'partner', fundIds: [1], lpId: 8 },
+    { role: 'viewer', fundIds: [1], lpId: 8 },
+    { role: 'operator', fundIds: [1], lpId: 8 },
+    { role: 'partner', fundIds: [] },
+    { role: 'analyst', fundIds: [] },
+  ];
+
+  function setActor(actor: { role: string; fundIds: number[]; lpId?: number }) {
+    authState.authenticated = true;
+    authState.userId = nextUserId++;
+    authState.role = actor.role;
+    authState.roles = [actor.role];
+    authState.fundIds = actor.fundIds;
+    authState.lpId = actor.lpId;
+  }
+
+  function sendRoute(app: express.Express, route: (typeof roleMatrixRoutes)[number]) {
+    let call = request(app).post(route.path);
+    for (const [name, value] of Object.entries(route.headers ?? {})) {
+      call = call.set(name, value);
+    }
+    return call.send(route.body);
+  }
+
+  it.each(allowedActors)(
+    'allows $role with the required fund authority across all ten routes',
+    async (actor) => {
+      for (const route of roleMatrixRoutes) {
+        setActor(actor);
+        vi.clearAllMocks();
+        const response = await sendRoute(buildApp(), route);
+        expect(response.status, `${route.method} ${route.path}`).toBeLessThan(400);
+        expect(route.spy, `${route.method} ${route.path}`).toHaveBeenCalled();
+      }
+    }
+  );
+
+  it.each(deniedActors)(
+    'denies $role without reaching route side effects across all ten routes',
+    async (actor) => {
+      for (const route of roleMatrixRoutes) {
+        setActor(actor);
+        vi.clearAllMocks();
+        const response = await sendRoute(buildApp(), route);
+        expect(response.status, `${route.method} ${route.path}`).toBe(403);
+        expect(Object.keys(response.body).sort()).toEqual(['code', 'error', 'message']);
+        expect(routeSideEffectSpies().every((spy) => spy.mock.calls.length === 0)).toBe(true);
+      }
+    }
+  );
+
+  it('rejects invalid fund IDs before any route side effect', async () => {
+    setActor({ role: 'analyst', fundIds: [1] });
+    vi.clearAllMocks();
+    const response = await request(buildApp())
+      .post('/api/funds/abc/imports/ledger/dry-run')
+      .send({ sourceType: 'csv', payload: ledgerCsvBase64 });
+    expect(response.status).toBe(400);
+    expect(routeSideEffectSpies().every((spy) => spy.mock.calls.length === 0)).toBe(true);
+  });
 });
 
 describe('POST /api/funds/:fundId/imports/ledger/dry-run', () => {

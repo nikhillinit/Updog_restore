@@ -99,6 +99,100 @@ async function getJson(fetchImpl, url, options, label) {
   }
 }
 
+async function getProbe(fetchImpl, hostname, deadlineAt, now) {
+  const url = `https://${hostname}/api/health`;
+  const signal = collectionSignal(deadlineAt, now, 'Vercel access posture probe');
+  let response;
+  try {
+    response = await fetchImpl(url, { method: 'GET', redirect: 'manual', signal });
+  } catch {
+    fail('Vercel access posture probe failed');
+  }
+  if (signal.aborted || now() >= deadlineAt) fail('Vercel access posture probe failed');
+  try {
+    await response?.body?.cancel?.();
+  } catch {
+    // Discard a probe body even when cancellation is unavailable.
+  }
+  if (signal.aborted || now() >= deadlineAt || !response || !Number.isInteger(response.status)) {
+    fail('Vercel access posture probe failed');
+  }
+  let redirectHost = null;
+  let redirectPathPrefix = null;
+
+  const location = response.status >= 300 && response.status < 400
+    ? response.headers?.get?.('location')
+    : null;
+  if (location) {
+    try {
+      const redirect = new URL(location, url);
+      redirectHost = redirect.host.toLowerCase();
+      const firstSegment = redirect.pathname.split('/').filter(Boolean)[0];
+      redirectPathPrefix = firstSegment ? `/${firstSegment}` : null;
+    } catch {
+      fail('Vercel access posture probe failed');
+    }
+  }
+  return { hostname, status: response.status, redirectHost, redirectPathPrefix };
+}
+
+function hostnameOnly(value) {
+  if (typeof value !== 'string' || value.trim() === '') fail('Vercel access posture is malformed');
+  try {
+    const normalized = value.includes('://') ? value : `https://${value}`;
+    return new URL(normalized).hostname.toLowerCase();
+  } catch {
+    fail('Vercel access posture is malformed');
+  }
+}
+
+async function collectAccessPosture({ fetchImpl, vercelProjectId, vercelOrgId, canonicalHostname, deadlineAt, now, vercelToken }) {
+  const projectUrl = `${VERCEL_API_URL}/v9/projects/${encodeURIComponent(vercelProjectId)}?teamId=${encodeURIComponent(vercelOrgId)}`;
+  const domainsUrl = `${VERCEL_API_URL}/v9/projects/${encodeURIComponent(vercelProjectId)}/domains?teamId=${encodeURIComponent(vercelOrgId)}&limit=100`;
+  const project = await getJson(fetchImpl, projectUrl, {
+    headers: { Authorization: `Bearer ${vercelToken}` }, deadlineAt, now,
+  }, 'Vercel project posture');
+  const domainsResponse = await getJson(fetchImpl, domainsUrl, {
+    headers: { Authorization: `Bearer ${vercelToken}` }, deadlineAt, now,
+  }, 'Vercel project domains');
+  if (domainsResponse?.pagination?.next != null || !Array.isArray(domainsResponse?.domains)) {
+    fail('Vercel project domains are incomplete');
+  }
+  const deployment = await getJson(fetchImpl,
+    `${VERCEL_API_URL}/v13/deployments/${encodeURIComponent(canonicalHostname)}?teamId=${encodeURIComponent(vercelOrgId)}`,
+    { headers: { Authorization: `Bearer ${vercelToken}` }, deadlineAt, now },
+    'Vercel canonical deployment');
+  if (deployment?.projectId !== vercelProjectId) fail('Vercel canonical deployment project mismatch');
+  const aliases = await getJson(fetchImpl, vercelDeploymentAliasesUrl(deployment?.id, vercelOrgId), {
+    headers: { Authorization: `Bearer ${vercelToken}` }, deadlineAt, now,
+  }, 'Vercel canonical deployment aliases');
+  const canonicalDeployment = withCurrentVercelAliases(deployment, aliases);
+  const hostnames = [...new Set([
+    ...domainsResponse.domains.map((domain) => hostnameOnly(domain?.name)),
+    ...canonicalDeployment.aliases.map(hostnameOnly),
+  ])].sort();
+  const bypassValues = Object.values(project?.protectionBypass ?? {});
+  const scopes = [...new Set(bypassValues
+    .map((entry) => entry?.scope)
+    .filter((scope) => typeof scope === 'string'))].sort();
+  const protection = (value) => ({
+    enabled: value !== null && value !== undefined,
+    deploymentType: typeof value?.deploymentType === 'string' ? value.deploymentType : null,
+  });
+  const probes = [];
+  for (const hostname of hostnames) {
+    probes.push(await getProbe(fetchImpl, hostname, deadlineAt, now));
+  }
+  return {
+    deploymentType: project?.ssoProtection?.deploymentType ?? null,
+    passwordProtection: protection(project?.passwordProtection),
+    trustedIps: protection(project?.trustedIps),
+    bypass: { count: bypassValues.length, scopes },
+    hostnames,
+    probes,
+  };
+}
+
 function positiveTimeout(value, label) {
   const timeoutMs = Number(value);
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -151,6 +245,7 @@ export async function collectProviderEvidence({
   deadlineAt,
   now = Date.now,
   collectionTimeoutMs,
+  accessPosture = false,
 } = {}) {
   if (typeof fetchImpl !== 'function') fail('fetch is unavailable');
   if (typeof writeFileImpl !== 'function') fail('file writer is unavailable');
@@ -160,6 +255,9 @@ export async function collectProviderEvidence({
   const vercelProjectId = requiredEnvironment('VERCEL_PROJECT_ID', environment);
   const railwayToken = requiredEnvironment('RAILWAY_TOKEN', environment);
   const bypassSecret = requiredEnvironment('VERCEL_AUTOMATION_BYPASS_SECRET', environment);
+  const canonicalHostname = accessPosture
+    ? requiredEnvironment('VERCEL_PRODUCTION_HOSTNAME', environment).toLowerCase()
+    : undefined;
   const secrets = [vercelToken, railwayToken, bypassSecret];
   const { url, host } = parseDeploymentUrl(deploymentUrl);
   const safeOutputDirectory = assertSafePath(outputDirectory, secrets);
@@ -205,6 +303,17 @@ export async function collectProviderEvidence({
     { deployment: withCurrentVercelAliases(deployment, aliases), version },
     vercelProjectId
   );
+  const accessPostureEvidence = accessPosture
+    ? await collectAccessPosture({
+        fetchImpl,
+        vercelProjectId,
+        vercelOrgId,
+        canonicalHostname,
+        deadlineAt: collectionDeadlineAt,
+        now,
+        vercelToken,
+      })
+    : undefined;
 
   let scope;
   try {
@@ -247,18 +356,31 @@ export async function collectProviderEvidence({
 
   await writeEvidence(writeFileImpl, safeOutputDirectory, 'vercel-evidence.json', vercelEvidence, secrets);
   await writeEvidence(writeFileImpl, safeOutputDirectory, 'railway-evidence.json', railwayEvidence, secrets);
-  return { vercelEvidence, railwayEvidence };
+  if (accessPostureEvidence) {
+    await writeEvidence(writeFileImpl, safeOutputDirectory, 'vercel-access-posture.json', accessPostureEvidence, secrets);
+  }
+  return {
+    vercelEvidence,
+    railwayEvidence,
+    ...(accessPostureEvidence ? { accessPosture: accessPostureEvidence } : {}),
+  };
 }
 
 function parseArguments(args) {
   const values = {};
-  for (let index = 0; index < args.length; index += 2) {
+  for (let index = 0; index < args.length;) {
     const flag = args[index];
+    if (flag === '--access-posture') {
+      values['access-posture'] = true;
+      index += 1;
+      continue;
+    }
     const value = args[index + 1];
     if ((flag !== '--deployment-url' && flag !== '--output-dir') || value === undefined) {
       fail('arguments must be --deployment-url value --output-dir value');
     }
     values[flag.slice(2)] = value;
+    index += 2;
   }
   if (!values['deployment-url'] || !values['output-dir']) {
     fail('deployment URL and output directory are required');
@@ -283,6 +405,7 @@ async function main() {
   await collectProviderEvidence({
     deploymentUrl: args['deployment-url'],
     outputDirectory: safeOutputDirectory,
+    accessPosture: args['access-posture'] ?? false,
   });
   console.log('Provider evidence collected.');
 }

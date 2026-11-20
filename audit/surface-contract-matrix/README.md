@@ -311,6 +311,11 @@ closed-repair regression cases are in
 `tests/unit/audit/surface-contract-matrix-approve.test.ts`. The reviewer must
 not use the full `g1-review.json` manifest for this repair.
 
+For every write row, the scoped review records one of three things: the
+effective write guard, an equivalent control (for example the actuals pilot
+grant), or an explicit exception. Authentication alone does not prove write
+authority. Keep a row unresolved when none of the three is recorded.
+
 After the scoped review is complete, run the dry run and then the owner-
 authorized mutation. Both validate the ignored knowledge graph against the exact
 `HEAD`. If `HEAD` moved after the reseed (a committed reseed or any later

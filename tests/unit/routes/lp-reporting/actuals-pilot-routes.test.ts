@@ -49,7 +49,8 @@ vi.mock('../../../../server/config/actuals-pilot-env', () => ({
   readActualsPilotFundId: () => state.pilotFundId,
 }));
 
-vi.mock('../../../../server/lib/auth/jwt', () => ({
+vi.mock('../../../../server/lib/auth/jwt', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../../server/lib/auth/jwt')>()),
   requireAuth: () => (req: Request, _res: Response, next: NextFunction) => {
     const authenticatedRequest = req as Request & {
       user?: Record<string, unknown>;

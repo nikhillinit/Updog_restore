@@ -204,6 +204,26 @@ result with their actual chronology in the PR evidence. It creates no standing
 bootstrap exception. Vercel's separate admission, risk acceptance, identity, and
 execution gates remain unchanged; neither action authorizes the other.
 
+## One-time Vercel Authentication coverage deviation (ADR-117)
+
+**Scope.** This record covers one Vercel project PATCH on 2026-11-20 (UTC),
+changing `ssoProtection.deploymentType` from `all_except_custom_domains` to
+`all`. The previous mode did not cover the production project domain.
+
+**Owner instruction.** An agent session executed the PATCH on the owner's
+explicit instruction, through the Vercel API with the owner's CLI credentials,
+after the Vercel MCP connector refused the write (403). No admitted route
+covered that provider action.
+
+**Observed result.** Afterwards, unauthenticated probes of every production
+hostname returned a redirect to Vercel login. A later re-probe of the production
+project domain on 2026-11-20 confirmed it.
+
+**No standing exception.** This records chronology only. It does not authorize
+the action retroactively or create a standing exception. Production mode stays
+`all` under the release posture gate. The ADR-079 review and access-expansion
+hold remain in force.
+
 ## Proportional release-governance applicability
 
 Release governance separates source admission, immutable candidate

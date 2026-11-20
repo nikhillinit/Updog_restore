@@ -18,6 +18,22 @@ const REQUIRED_TESTCONTAINERS_TRIGGER_SEAMS = [
   'tests/helpers/testcontainers.ts',
   'tests/helpers/testcontainers-migration.ts',
   'tests/integration/helpers/run-drizzle-push.ts',
+  'tests/integration/valuation-mark-commit-http.pg.test.ts',
+  'tests/helpers/valuation-mark-http-fixture.ts',
+  'server/routes/lp-reporting/imports.ts',
+  'server/lib/auth/jwt.ts',
+  'server/lib/auth/provided-fund-scope.ts',
+  'server/lib/auth/principal.ts',
+  'server/lib/auth/fund-scope.ts',
+  'server/lib/auth/request-credentials.ts',
+  'shared/auth/effective-roles.ts',
+  'shared/number.ts',
+  'server/services/lp-reporting/import-commit-service.ts',
+  'server/services/lp-reporting/import-reconciliation-service.ts',
+  'shared/contracts/lp-reporting/import-commit.contract.ts',
+  'shared/schema/lp-reporting-evidence.ts',
+  'server/services/financial-observations/reconciliation-case-service.ts',
+  'server/services/financial-observations/import-batch-commit-service.ts',
 ] as const;
 
 interface PathFilters {
