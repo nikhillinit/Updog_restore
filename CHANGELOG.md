@@ -22,6 +22,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Governance (2026-11-21)
+
+- F_1.3.11 plan: makes the ninth production release the next milestone. It
+  re-baselines the F_1.3.8 gates, records that ADR-116 has no owner ratification
+  yet, and adds four slices: an ADR-116 ratification record, the Railway token
+  check under ADR-118, the ADR-079 review of the remaining Vercel-reachable
+  write rows (gating the 0062 window only on confirmed gaps), and front-loaded
+  pre-window evidence. The #1715 refusal-handling repair is drafted now and
+  merged after the release. Plan only; no production action is authorized.
+
 ### Governance (2026-11-20)
 
 - F_1.3.8 S2, ADR-118 (Proposed): owner-run Railway Production token replacement
