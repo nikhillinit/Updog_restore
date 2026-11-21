@@ -431,6 +431,8 @@ schema_tests:
   - 'tests/integration/financial-facts-payload5-consumers.pg.test.ts'
   - 'tests/integration/lp-reporting-actuals-pilot-publish.pg.test.ts'
   - 'tests/integration/valuation-mark-commit-http.pg.test.ts'
+  - 'tests/integration/adr079-metric-run-write-guards.pg.test.ts'
+  - 'server/routes/lp-reporting/metric-runs.ts'
   - 'tests/helpers/valuation-mark-http-fixture.ts'
   - 'server/routes/lp-reporting/imports.ts'
   - 'server/lib/auth/jwt.ts'

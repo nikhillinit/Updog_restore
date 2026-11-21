@@ -35,14 +35,14 @@
  * @see docs/adr/ADR-011-decimal-string-api-convention.md
  */
 
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { parseFundIdParam } from '@shared/number';
-import { PARTNER_WRITE_ROLES } from '@shared/auth/effective-roles';
+import { PARTNER_WRITE_ROLES, TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
 
 import { requireAuth, requireFundAccess, requireWriteRole } from '../../lib/auth/jwt';
-import { enforceProvidedFundScope } from '../../lib/auth/provided-fund-scope';
+import { enforceProvidedFundScope, enforceTeamWriteRole } from '../../lib/auth/provided-fund-scope';
 import { firstString } from '../../lib/request-values';
 import {
   MetricRunCommitRequestSchema,
@@ -135,7 +135,29 @@ import { getMetricRunReportPackageRenderModel } from '../../services/lp-reportin
 
 const router = Router();
 const EmptyRequestBodySchema = z.object({}).strict();
+const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
 const requirePartnerWrite = requireWriteRole(PARTNER_WRITE_ROLES);
+
+async function enforceMetricRunWriteBoundary(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const fundId = parseFundId(req);
+    if (
+      (await enforceProvidedFundScope(req, res, fundId, { forWrite: true })) &&
+      enforceTeamWriteRole(req, res)
+    ) {
+      next();
+    }
+  } catch (err) {
+    sendMetricRunError(res, err, 'METRIC_RUN_WRITE_SCOPE_FAILED');
+  }
+}
+
+const requireTeamMetricRunWrite = [requireTeamWrite, enforceMetricRunWriteBoundary] as const;
+const requirePartnerMetricRunWrite = [requirePartnerWrite, enforceMetricRunWriteBoundary] as const;
 
 const metricRunLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -217,6 +239,7 @@ function sendMetricRunError(
   err: unknown,
   fallbackCode:
     | 'METRIC_RUN_DRY_RUN_FAILED'
+    | 'METRIC_RUN_WRITE_SCOPE_FAILED'
     | 'METRIC_RUN_COMMIT_FAILED'
     | 'METRIC_RUN_DETAIL_FAILED'
     | 'METRIC_RUN_LATEST_FAILED'
@@ -322,7 +345,7 @@ router.post(
 router.post(
   '/api/funds/:fundId/metric-runs/commit',
   requireAuth(),
-  requireFundAccess,
+  ...requireTeamMetricRunWrite,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = MetricRunCommitRequestSchema.safeParse(req.body);
@@ -541,7 +564,7 @@ router.get(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json',
   requireAuth(),
-  requireFundAccess,
+  ...requirePartnerMetricRunWrite,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = EmptyRequestBodySchema.safeParse(req.body ?? {});
@@ -607,7 +630,7 @@ router.get(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
   requireAuth(),
-  requireFundAccess,
+  ...requirePartnerMetricRunWrite,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = EmptyRequestBodySchema.safeParse(req.body ?? {});
@@ -673,7 +696,7 @@ router.get(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/report-package',
   requireAuth(),
-  requireFundAccess,
+  ...requireTeamMetricRunWrite,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = ReportPackageAssembleRequestSchema.safeParse(req.body);
@@ -721,7 +744,7 @@ router.get(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
   requireAuth(),
-  requireFundAccess,
+  ...requireTeamMetricRunWrite,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = MetricRunEvidenceCreateRequestSchema.safeParse(req.body);
@@ -769,7 +792,7 @@ router.get(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
   requireAuth(),
-  requireFundAccess,
+  ...requireTeamMetricRunWrite,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = NarrativeRunCreateRequestSchema.safeParse(req.body);
@@ -798,7 +821,7 @@ router.post(
 router.patch(
   '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId',
   requireAuth(),
-  requireFundAccess,
+  ...requireTeamMetricRunWrite,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = NarrativeRunEditRequestSchema.safeParse(req.body);
@@ -828,7 +851,7 @@ router.patch(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/review',
   requireAuth(),
-  requireFundAccess,
+  ...requirePartnerMetricRunWrite,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = NarrativeRunReviewRequestSchema.safeParse(req.body);
@@ -858,7 +881,7 @@ router.post(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/approve',
   requireAuth(),
-  requireFundAccess,
+  ...requirePartnerMetricRunWrite,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = NarrativeRunApproveRequestSchema.safeParse(req.body);

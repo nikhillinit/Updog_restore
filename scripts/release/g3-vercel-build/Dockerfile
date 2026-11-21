@@ -1,6 +1,6 @@
 # Rebuild the locked esbuild versions: upstream binaries still embed vulnerable Go.
 # Native compiler cross-compiles amd64; both official images are digest-pinned.
-FROM --platform=$BUILDPLATFORM golang:1.26.10-alpine3.24@sha256:87c65a688975c0b1d4585d204874c45ca78354670e3a5f11368c5a492303d696 AS esbuild-build
+FROM --platform=$BUILDPLATFORM golang:1.26.11-alpine3.24@sha256:ecb67f987aa1a57794c91d19ade7ae0209f2f0f5496aaef9e6ae85ddf92d02ab AS esbuild-build
 ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOAMD64=v1 GOTOOLCHAIN=local
 RUN go mod download github.com/evanw/esbuild@v0.25.12 github.com/evanw/esbuild@v0.27.0 \
     && cd /go/pkg/mod/github.com/evanw/esbuild@v0.25.12 \
