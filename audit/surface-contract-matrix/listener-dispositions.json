@@ -48,7 +48,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "independent-scoped-review:f139-import-write-guards-20261120-scoped-review;source=2d3935d26934658361d7097cfc71293899722921;reviewer=claude-opus-5-5-scoped-review(reseed-operator;not-independent);diff-reviewed-by=codex-code-review;approver=nikhillinit;scope=24-imports-route-rows-one-legacy-railway-listener;verdict=Dockerfile.railway and the Railway worker manifests are unchanged. The seeder resets the legacy listener disposition to proposed when imports.ts changes. Its unchanged fingerprint supports retaining the existing non-product-tooling classification."
+    "decision_evidence": "scoped-review:f1311-metric-runs;source=244f482a6e2d5becc5fb12577a955f5bdd55f083;reviewer=codex-reseed-operator-not-independent;approver=nikhillinit;authorization=owner-directed-local;scope=metric-runs The seeder always resets this legacy listener. Its source, fingerprint, and non-product-tooling disposition match the admitted F_1.3.9 review."
   },
   {
     "candidate_path": "Dockerfile.simple",
