@@ -1,5 +1,5 @@
 import type { Server } from 'node:http';
-import { Pool } from 'pg';
+import { Client, Pool } from 'pg';
 import request from 'supertest';
 import { vi } from 'vitest';
 import { runMigrationsWithConnectionString } from './testcontainers-migration';
@@ -69,9 +69,10 @@ export async function createValuationHttpFixture() {
       admin.query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`);
     url.pathname = `/${databaseName}`;
     await runMigrationsWithConnectionString(url.toString());
-    const observer = new Pool({ connectionString: url.toString(), max: 3 });
+    const observer = new Client({ connectionString: url.toString() });
     cleanupSteps.observer = () => observer.end();
-    // Use a non-superuser application role; the observer uses a separate pool.
+    await observer.connect();
+    // Use a non-superuser application role; the observer uses a separate connection.
     await admin.query(`CREATE ROLE "${databaseName}" LOGIN PASSWORD '${databaseName}'`);
     cleanupSteps.role = () => admin.query(`DROP ROLE IF EXISTS "${databaseName}"`);
     await observer.query(`GRANT USAGE ON SCHEMA public TO "${databaseName}";

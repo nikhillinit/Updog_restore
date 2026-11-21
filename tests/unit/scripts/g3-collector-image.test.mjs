@@ -24,7 +24,7 @@ describe('collector image security and prepared dependencies', () => {
       /^FROM --platform=linux\/amd64 node:22\.23\.4-alpine3\.24@sha256:[a-f0-9]{64}$/m
     );
     expect(dockerfile).toMatch(
-      /^FROM --platform=\$BUILDPLATFORM golang:1\.26\.10-alpine3\.24@sha256:87c65a688975c0b1d4585d204874c45ca78354670e3a5f11368c5a492303d696 AS esbuild-build$/m
+      /^FROM --platform=\$BUILDPLATFORM golang:1\.26\.11-alpine3\.24@sha256:ecb67f987aa1a57794c91d19ade7ae0209f2f0f5496aaef9e6ae85ddf92d02ab AS esbuild-build$/m
     );
     expect(dockerfile).toMatch(/^ENV .*GOAMD64=v1(?:\s|$)/m);
     expect(dockerfile).toContain('npm install --global npm@11.21.2 --ignore-scripts');
