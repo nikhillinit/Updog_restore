@@ -24,6 +24,9 @@ and this project adheres to
 
 ### Governance (2026-11-21)
 
+- ADR-116 ratification record: prepares ADR-115 and ADR-116 accepted status
+  pending owner ratification and records ADR-118's owner ratification in #1721.
+  Source admission only; no production action is authorized.
 - F_1.3.11 plan: makes the ninth production release the next milestone. It
   re-baselines the F_1.3.8 gates, records that ADR-116 has no owner ratification
   yet, and adds four slices: an ADR-116 ratification record, the Railway token

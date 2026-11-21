@@ -238,17 +238,15 @@ describe('production governance documentation routing', () => {
     expect(flatGuide).toContain('never from workflow output');
   });
 
-  it('limits the proposed ADR-115 successor to the landed 0062 route and keeps recovery required', async () => {
+  it('limits the accepted ADR-115 successor to the landed 0062 route and keeps recovery required', async () => {
     const policy = flattenWhitespace(await readRepositoryFile(policyPath));
     const guide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
     const decisions = flattenWhitespace(await readRepositoryFile('DECISIONS.md'));
 
     expect(decisions).toContain('## ADR-115: Forward Journaled Schema Apply for Migration 0062');
+    expect(decisions).toContain('Accepted as amended by ADR-116.');
     expect(decisions).toContain(
-      "Proposed. ADR-115 takes effect only as amended by ADR-116, on ADR-116's explicit owner ratification and protected-main source admission."
-    );
-    expect(decisions).toContain(
-      'Requires explicit owner ratification and protected-main source admission.'
+      'after protected-main source admission in #1720 at `a59716141`. No current production action is authorized.'
     );
     const successor = policy
       .split('**Journaled schema successor for migration 0062 (ADR-115).**')[1]
@@ -284,14 +282,14 @@ describe('production governance documentation routing', () => {
     expect(successor).not.toContain('independently reviewed');
   });
 
-  it('pins the proposed ADR-118 token replacement route and its authority limits', async () => {
+  it('pins the accepted ADR-118 token replacement route and its authority limits', async () => {
     const decisions = flattenWhitespace(await readRepositoryFile('DECISIONS.md'));
     const policy = flattenWhitespace(await readRepositoryFile(policyPath));
     const guide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
 
     expect(decisions).toContain('## ADR-118: Owner-Run Railway Production Token Replacement');
     expect(decisions).toContain(
-      '**Date:** Set on owner ratification. **Status:** Proposed. Takes effect only with explicit owner ratification and protected-main admission of the matching policy section, procedure, and check workflow.'
+      '**Date:** 2026-11-20 **Status:** Accepted. The owner ratified this decision in #1721 (squash `e709c0348`, merged 2026-11-21). Each use still requires its own owner instruction.'
     );
     expect(decisions).toContain(
       "For each use, the owner's explicit acceptance of the concurrent-writer overwrite risk replaces optimistic locking for that use's secret writes, at most three."
