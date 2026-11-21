@@ -24,6 +24,10 @@ and this project adheres to
 
 ### Governance (2026-11-21)
 
+- The owner ratified ADR-116 in #1724 and accepted ADR-115 as amended. ADR-116
+  takes effect when #1724 merges to protected `main` after required current-head
+  CI passes. The owner's ADR-118 ratification is recorded in #1721. Each
+  production action requires separate authorization.
 - F_1.3.11 plan: makes the ninth production release the next milestone. It
   re-baselines the F_1.3.8 gates, records that ADR-116 has no owner ratification
   yet, and adds four slices: an ADR-116 ratification record, the Railway token

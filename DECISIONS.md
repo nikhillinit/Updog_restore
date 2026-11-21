@@ -13865,10 +13865,9 @@ production credential rotation stays in force.
 
 **Date:** 2026-11-18
 
-**Status:** Proposed. ADR-115 takes effect only as amended by ADR-116, on
-ADR-116's explicit owner ratification and protected-main source admission.
-Requires explicit owner ratification and protected-main source admission. No
-current production action is authorized.
+**Status:** Accepted as amended by ADR-116. The owner ratified ADR-116 in #1724
+after protected-main source admission in #1720 at `a59716141`. No current
+production action is authorized.
 
 ### Context
 
@@ -13932,11 +13931,10 @@ own governed decision.
 
 ## ADR-116: Solo-Operator Ratification of ADR-115 for Migration 0062
 
-**Date:** Set on owner ratification.
+**Date:** 2026-11-21
 
-**Status:** Proposed. Takes effect only with explicit owner ratification and
-protected-main admission of the matching policy amendment, procedure,
-admission-script change, and tests in one pull request. No production action is
+**Status:** Accepted. The owner ratified this decision in #1724 after
+protected-main source admission in #1720 at `a59716141`. No production action is
 authorized by this entry.
 
 **Context.** ADR-115 (Proposed) admits a forward route for the landed 0062 SQL
@@ -14090,9 +14088,9 @@ vercel api '/v9/projects/<project-id>?teamId=<team-id>' --method PATCH --input b
 
 ## ADR-118: Owner-Run Railway Production Token Replacement
 
-**Date:** Set on owner ratification. **Status:** Proposed. Takes effect only
-with explicit owner ratification and protected-main admission of the matching
-policy section, procedure, and check workflow.
+**Date:** 2026-11-20 **Status:** Accepted. The owner ratified this decision in
+#1721 (squash `e709c0348`, merged 2026-11-21). Each use still requires its own
+owner instruction.
 
 **Context.** Every release mode needs a valid GitHub `Production`
 `RAILWAY_TOKEN`. Railway invalidated pre-incident tokens on 2026-10-22. The
