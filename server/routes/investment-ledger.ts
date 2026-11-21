@@ -12,7 +12,8 @@
  *   GET  /api/funds/:fundId/investment-ledger/financing-events/:eventId
  *
  * Write middleware chain (existing primitives only):
- *   ledgerIngressLimiter -> requireAuth() -> validateFundIdParam -> requireFundAccess -> ledgerWriteLimiter
+ *   ledgerIngressLimiter -> requireAuth() -> validateFundIdParam -> requireTeamWrite
+ *   -> requireFundWriteAccess -> ledgerWriteLimiter
  *
  * Read middleware keeps the ingress cap, auth, fund validation, and fund access
  * guard, but does not consume the write quota.
@@ -29,7 +30,13 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import rateLimit from 'express-rate-limit';
 import { ZodError, z } from 'zod';
 
-import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
+
+import { requireAuth, requireFundAccess, requireWriteRole } from '../lib/auth/jwt';
+import {
+  enforceProvidedFundScope,
+  enforceTeamWriteRole,
+} from '../lib/auth/provided-fund-scope';
 import { parseETag } from '../lib/http-preconditions';
 import { firstString } from '../lib/request-values';
 import {
@@ -242,11 +249,28 @@ function validateFundIdParam(req: Request, res: Response, next: NextFunction): v
   }
 }
 
+const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
+
+async function requireFundWriteAccess(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+  if (
+    (await enforceProvidedFundScope(req, res, fundId, { forWrite: true })) &&
+    enforceTeamWriteRole(req, res)
+  ) {
+    next();
+  }
+}
+
 const writeChain = [
   ledgerIngressLimiter,
   requireAuth(),
   validateFundIdParam,
-  requireFundAccess,
+  requireTeamWrite,
+  requireFundWriteAccess,
   ledgerWriteLimiter,
 ] as const;
 

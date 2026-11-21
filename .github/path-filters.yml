@@ -406,6 +406,7 @@ schema_tests:
   - 'tests/integration/prod-journaled-migration-recovery.test.ts'
   - 'tests/integration/investment-scenario-capability.test.ts'
   - 'tests/integration/vehicle-financing-participations-real-pg.test.ts'
+  - 'tests/integration/adr079-investment-ledger-write-guards.pg.test.ts'
   - 'tests/integration/operating-decisions/operating-decisions-schema.pg.test.ts'
   - 'tests/integration/current-forecast-manual-recompute.pg.test.ts'
   - 'tests/integration/current-forecast-automatic-shadow.pg.test.ts'

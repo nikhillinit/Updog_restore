@@ -29,8 +29,8 @@ const authState = vi.hoisted(() => ({
     id: '3',
     sub: '3',
     email: 'ledger-user@example.com',
-    role: 'user',
-    roles: ['user'],
+    role: 'analyst',
+    roles: ['analyst'],
     fundIds: [7],
   } as Express.User | undefined,
 }));
@@ -283,8 +283,8 @@ beforeEach(() => {
     id: '3',
     sub: '3',
     email: 'ledger-user@example.com',
-    role: 'user',
-    roles: ['user'],
+    role: 'analyst',
+    roles: ['analyst'],
     fundIds: [7],
   };
   serviceState.createFinancingEvent.mockReset();
@@ -426,6 +426,73 @@ describe('investment-ledger routes', () => {
     },
   ];
 
+  const writeRoutes = fundScopedRoutes.filter((route) => route.method === 'post');
+
+  it.each([
+    {
+      name: 'restricted same-fund user',
+      user: {
+        id: '3',
+        sub: '3',
+        email: 'ledger-user@example.com',
+        role: 'user',
+        roles: ['user'],
+        fundIds: [7],
+      },
+      code: 'WRITE_ROLE_REQUIRED',
+    },
+    {
+      name: 'LP-linked analyst',
+      user: {
+        id: '3',
+        sub: '3',
+        email: 'ledger-lp@example.com',
+        role: 'analyst',
+        roles: ['analyst'],
+        fundIds: [7],
+        lpId: 19,
+      },
+      code: 'TEAM_WRITE_REQUIRED',
+    },
+  ])('denies every write for a $name before service dispatch', async ({ user, code }) => {
+    authState.user = user;
+    expect(writeRoutes).toHaveLength(10);
+
+    for (const route of writeRoutes) {
+      const response = await request(makeApp())
+        .post(route.path('7'))
+        .set('Idempotency-Key', `denied-${route.name.replace(/ /g, '-')}`)
+        .set('If-Match', '"1"')
+        .send('body' in route ? route.body : undefined);
+
+      expect(response.status, route.name).toBe(403);
+      expect(response.body, route.name).toMatchObject({ error: 'Forbidden', code });
+      expect(route.service, route.name).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each(['admin', 'partner', 'analyst'])('permits %s investment-ledger writes', async (role) => {
+    authState.user = {
+      id: '3',
+      sub: '3',
+      email: `ledger-${role}@example.com`,
+      role,
+      roles: [role],
+      fundIds: [7],
+    };
+    serviceState.createFinancingEvent.mockResolvedValueOnce({ value: EVENT, replayed: false });
+
+    const response = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/financing-events')
+      .set('Idempotency-Key', `allowed-${role}`)
+      .send(eventBody);
+
+    expect(response.status).toBe(201);
+    expect(serviceState.createFinancingEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ fundId: 7, actorId: 3, idempotencyKey: `allowed-${role}` })
+    );
+  });
+
   it.each([
     ['malformed', 'abc'],
     ['non-positive', '0'],
@@ -469,8 +536,8 @@ describe('investment-ledger routes', () => {
       id: '3',
       sub: '3',
       email: 'ledger-user@example.com',
-      role: 'user',
-      roles: ['user'],
+      role: 'analyst',
+      roles: ['analyst'],
       fundIds: [7],
     };
 
@@ -492,8 +559,8 @@ describe('investment-ledger routes', () => {
       id: '3003',
       sub: '3003',
       email: 'ledger-limit@example.com',
-      role: 'user',
-      roles: ['user'],
+      role: 'analyst',
+      roles: ['analyst'],
       fundIds: [7],
     };
     serviceState.createFinancingEvent.mockResolvedValue({ value: EVENT, replayed: false });
@@ -956,6 +1023,11 @@ describe('investment-ledger routes', () => {
     expect(readChain).toContain('validateFundIdParam');
     expect(readChain).toContain('requireFundAccess');
     expect(readChain).not.toContain('ledgerWriteLimiter');
+    expect(readChain).not.toContain('requireTeamWrite');
+    expect(readChain).not.toContain('requireFundWriteAccess');
+    expect(writeChain).toContain('requireTeamWrite');
+    expect(writeChain).toContain('requireFundWriteAccess');
+    expect(writeChain).not.toContain('requireFundAccess');
     expect(writeChain).toContain('ledgerWriteLimiter');
     expect(eventDetailRoute).toContain('...readChain');
     expect(eventDetailRoute).not.toContain('ledgerWriteLimiter');

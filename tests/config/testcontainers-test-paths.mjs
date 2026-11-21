@@ -25,6 +25,7 @@ export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
   'tests/integration/migrations/investments-id-fund-unique.test.ts',
   'tests/integration/investment-scenario-capability.test.ts',
   'tests/integration/vehicle-financing-participations-real-pg.test.ts',
+  'tests/integration/adr079-investment-ledger-write-guards.pg.test.ts',
   'tests/integration/fund-scenario-hard-timeout.test.ts',
   'tests/integration/portfolio-company-update.test.ts',
   'tests/integration/capital-call-status-outbox.test.ts',
