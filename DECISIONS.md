@@ -13865,9 +13865,9 @@ production credential rotation stays in force.
 
 **Date:** 2026-11-18
 
-**Status:** Accepted as amended by ADR-116. The owner ratified ADR-116 in
-`<R1_PR>` after protected-main source admission in #1720 at `a59716141`. No
-current production action is authorized.
+**Status:** Accepted as amended by ADR-116. The owner ratified ADR-116 in #1724
+after protected-main source admission in #1720 at `a59716141`. No current
+production action is authorized.
 
 ### Context
 
@@ -13931,9 +13931,9 @@ own governed decision.
 
 ## ADR-116: Solo-Operator Ratification of ADR-115 for Migration 0062
 
-**Date:** `<RATIFY_DATE>`
+**Date:** 2026-11-21
 
-**Status:** Accepted. The owner ratified this decision in `<R1_PR>` after
+**Status:** Accepted. The owner ratified this decision in #1724 after
 protected-main source admission in #1720 at `a59716141`. No production action is
 authorized by this entry.
 
