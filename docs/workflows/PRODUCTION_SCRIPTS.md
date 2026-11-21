@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-11-18
+last_updated: 2026-11-20
 ---
 
 # Canonical Production-Action Procedure
@@ -1142,6 +1142,118 @@ budget, then stop; an expired budget does not start a new reconciliation window.
   runtime/Redis probe, token revocation/deletion, or Neon action is included. A
   fresh receipt cannot reset a consumed budget. Any further credential attempt
   requires a new owner-scoped recovery decision under the then-current policy.
+
+## Railway production token replacement (ADR-118)
+
+This standing owner-run route is available only after ADR-118 and this procedure
+are admitted to protected `main`. Each use is a separate owner action. The token
+plaintext never enters an agent session, file, shell history, or the repository.
+The executor never approves a deployment or environment review.
+
+1. **Preconditions:** ADR-118 is admitted to protected `main`; the owner gives
+   explicit instruction for this use, including acceptance of the
+   concurrent-writer overwrite risk. Confirm no `release-production`,
+   `capture-release-baseline`, or `prod-schema-reconcile` run is queued or in
+   progress with `gh run list` for each workflow.
+2. **Check the stored token:** dispatch `production-provider-check.yml` from
+   `main`; the executor may dispatch on the owner's instruction. The owner
+   approves the `Production` environment gate.
+   - `PASS`: the stored token works. Stop; no replacement in this use. Do not
+     use step 2 for an open use; resume it only from its recorded phase under
+     step 10.
+   - `RAILWAY_TOKEN_REJECTED`, `RAILWAY_TOKEN_SCOPE`, or `RAILWAY_TOKEN_VALUE`:
+     continue to step 3.
+   - `RAILWAY_TOKEN_UNCONFIRMED`: rerun at least five minutes later; if it
+     repeats, continue to step 3. This replaces the stored token but revokes
+     none of the previously existing tokens until `PASS`.
+   - `PROVIDER_UNREACHABLE`: rerun later; do not continue on this result.
+   - Any other class: stop. The check cannot judge a new token until that repair
+     is planned and done separately.
+3. **Inventory:** the owner lists every project token on the Railway project's
+   token settings page and privately records each name, environment, and
+   creation date. Mark the token currently used by GitHub and, on the first use,
+   the original Production token and any token created on 2026-11-02. Read
+   `Production` secret metadata (names, `created_at`, `updated_at`); the
+   executor may perform this read. Verify that the GitHub `Production`
+   environment already has a `RAILWAY_TOKEN` secret and privately record its
+   `created_at` and `updated_at`. If the secret is absent or its metadata cannot
+   be verified, stop before creating a Railway token or writing a GitHub secret.
+   Provisioning a missing secret requires separate authorization.
+4. **Create:** create one project token for the Production environment named
+   `github-production-<YYYYMMDD>`; add a suffix for a later attempt on the same
+   day.
+5. **Write, then clear the clipboard:**
+
+   Never paste the token anywhere else. If its plaintext is lost before the
+   write, revoke the new token and return to step 4. A use permits at most three
+   secret writes (the first and two recreations); the owner's acceptance of
+   overwrite risk for the use covers each. Before invoking `gh secret set`,
+   increment writes used and privately record the attempt's token label,
+   creation time, and write result as pending. Then run:
+
+   ```bash
+   pbpaste | gh secret set RAILWAY_TOKEN --env Production --repo <owner/name>
+   railway_token_write_status=$?
+   pbcopy < /dev/null
+   ```
+
+   Record the captured `gh secret set` status independently of `pbcopy` as
+   acknowledged, failed, or unknown. An interruption leaves the pending result
+   unknown and consumes the reserved write. Only an acknowledged write continues
+   to step 6. A failed or unknown write never resets the writes-used count and
+   stops the route with both the new token and the token previously stored by
+   GitHub preserved.
+
+6. **Readback:** verify `RAILWAY_TOKEN` `updated_at` is later than the step 4
+   time, `created_at` is unchanged, and every other `Production` secret's
+   metadata equals step 3. Record the completed readback against this attempt.
+   An absent, failed, or mismatched readback preserves both tokens and permits
+   no check or revocation until a matching readback is established.
+7. **Check the new token** as in step 2 by dispatching a fresh workflow run only
+   after the same attempt has a recorded acknowledged write and matching
+   completed readback. Record the workflow run ID, run attempt, time, and result
+   against that write; no check dispatched before its readback or for another
+   attempt qualifies. Outcomes:
+   - `PASS`: continue.
+   - `RAILWAY_TOKEN_REJECTED`, `RAILWAY_TOKEN_SCOPE`, or `RAILWAY_TOKEN_VALUE`:
+     revoke the new token and return to step 4. When the use has no write left
+     under step 5, stop instead.
+   - `RAILWAY_TOKEN_UNCONFIRMED`: never revoke. Rerun at least five minutes
+     later; if it repeats, stop, keep the new token, and leave the use open
+     until a rerun gives `PASS` or a confirmed class.
+   - `PROVIDER_UNREACHABLE`: rerun the check; never revoke on this result.
+   - Any other class: token status is unestablished. Stop, keep the new token,
+     leave the use open, and investigate separately.
+8. **Revoke:** only a recorded same-attempt step 7 result after the required
+   write and readback permits revocation; the initial step 2 `PASS` never
+   supplies cleanup authority. Before the first revocation, privately record
+   that cleanup started. On the eligible post-write `PASS`, revoke the token
+   this use replaced and, on the first use, the original Production token and
+   any token created on 2026-11-02. Reread the token page: the new token is the
+   only Production-environment token, apart from tokens the owner chose at step
+   3 to keep, each recorded with a reason.
+9. **Record privately:** record times, token labels, and check run IDs and
+   results. Nothing goes in the repository. G1 in F_1.3.8 closes only when the
+   S8 capture authenticates to Railway. G2 worker readings and the
+   access-anomaly review remain separate owner readings and are not satisfied
+   here. Close the use only when this step is complete.
+10. **Open use:** a use that stopped after its first write and before step 9
+    stays open. Its private record retains the step 3 inventory and, for each
+    attempt, the token label, creation time, writes used, write result, readback
+    status, check workflow run ID, run attempt and result, and outstanding
+    revocations. Resume under the same acceptance or a renewed one at the
+    earliest unfinished recorded phase: step 6 after an acknowledged write when
+    readback is absent or failed, or step 7 after its matching completed
+    readback. A failed or unknown write, or a mismatched readback, preserves
+    both tokens and blocks steps 7 and 8 pending separate recovery. If step 8 is
+    conclusively complete and only step 9 remains, resume directly at step 9. If
+    step 8 started and any revocation is incomplete, failed, or unknown, rerun
+    step 7 only as a cleanup check and record a fresh workflow run ID, run
+    attempt, and `PASS` for the same write before any remaining revocation. Any
+    non-`PASS` result stops cleanup and preserves the newly stored token and
+    every remaining token; none of step 7's revoke-and-recreate branches apply
+    after cleanup has started. No interruption resets writes used. A new use
+    cannot start while one is open.
 
 ## One-time Vercel Git-repository disconnect (ADR-112)
 

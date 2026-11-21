@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { lstat, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -11,6 +12,7 @@ import {
   RELEASE_BASELINE_PLAN_PATH,
   ROLLBACK_DIFF_ALLOWLIST,
   buildReleaseRecoveryContext,
+  checkProviders,
   captureProviderBaseline,
   captureReleaseRecoveryContext,
   decodeBaselineEvidence,
@@ -18,6 +20,7 @@ import {
   verifyBaselineBinding,
   verifyBaselineConsumption,
   verifyPremergeBaseline,
+  readProviderIdentity,
 } from '../../../scripts/release/capture-release-recovery-context.mjs';
 
 const BASELINE_MAIN_SHA = 'a'.repeat(40);
@@ -180,6 +183,41 @@ function providerFetch({ deploymentUrl = 'baseline.vercel.app' } = {}) {
     }
     return { ok: true, json: async () => control };
   };
+}
+
+function recordingProviderFetch(override) {
+  const baseFetch = providerFetch();
+  const requests = [];
+  return {
+    requests,
+    fetchImpl: async (url, options) => {
+      requests.push({ url, body: options.body ?? null, redirect: options.redirect });
+      const response = await override?.(url, options, baseFetch);
+      return response === undefined ? baseFetch(url, options) : response;
+    },
+  };
+}
+
+function providerJsonResponse(status, body, malformed = false) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => {
+      if (malformed) throw new Error('synthetic malformed body');
+      return body;
+    },
+  };
+}
+
+function tokenContextResponse(body, status = 200) {
+  return providerJsonResponse(status, body);
+}
+
+function isTokenContextRequest(url, options) {
+  return (
+    url.includes('backboard.railway.com') &&
+    JSON.parse(options.body).query.includes('projectToken')
+  );
 }
 
 describe('capture-release-recovery-context', () => {
@@ -716,6 +754,457 @@ describe('capture-release-recovery-context', () => {
     expect(2 * DEFAULT_GIT_FETCH_TIMEOUT_MS + providerCaptureBudget * 60_000).toBeLessThan(
       jobBudget * 60_000
     );
+  });
+});
+
+describe('read-only provider check', () => {
+  it('returns provider identity shape and checks same requests as capture', async () => {
+    const environment = providerEnvironment();
+    const capture = recordingProviderFetch();
+    const check = recordingProviderFetch();
+    const identity = await readProviderIdentity({ environment, fetchImpl: providerFetch() });
+
+    expect(identity).toEqual({
+      expectedIdentity: captureInput().expectedIdentity,
+      providerIdentity: {
+        ...captureInput().providerIdentity,
+        railway: {
+          ...captureInput().providerIdentity.railway,
+          services: captureInput().providerIdentity.railway.services.map((service) => ({
+            ...service,
+            deploymentId: `deployment-${service.serviceId}`,
+          })),
+        },
+      },
+    });
+    await captureProviderBaseline({
+      baselineMainSha: BASELINE_MAIN_SHA,
+      plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+      plannedPrNumber: PLANNED_PR_NUMBER,
+      planPath: PLAN_PATH,
+      planSha256: PLAN_SHA256,
+      environment,
+      fetchImpl: capture.fetchImpl,
+    });
+    await expect(checkProviders({ environment, fetchImpl: check.fetchImpl })).resolves.toEqual({
+      ok: true,
+    });
+    expect(check.requests).toEqual(capture.requests);
+    expect(check.requests).toHaveLength(4);
+    expect(check.requests.every(({ redirect }) => redirect === 'error')).toBe(true);
+  });
+
+  it('classifies a thrown fetch and HTTP 503 as unreachable', async () => {
+    const thrown = recordingProviderFetch(() => {
+      throw new Error('synthetic network failure');
+    });
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: thrown.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'PROVIDER_UNREACHABLE' });
+    expect(thrown.requests).toHaveLength(1);
+
+    const unavailable = recordingProviderFetch((url) =>
+      url.includes('api.vercel.com') ? providerJsonResponse(503, {}) : undefined
+    );
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: unavailable.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'PROVIDER_UNREACHABLE' });
+  });
+
+  it('keeps HTTP status on request errors and no status on thrown fetches', async () => {
+    const rejected = recordingProviderFetch((url) =>
+      url.includes('api.vercel.com') ? providerJsonResponse(403, {}) : undefined
+    );
+    let httpError;
+    try {
+      await readProviderIdentity({ environment: providerEnvironment(), fetchImpl: rejected.fetchImpl });
+    } catch (error) {
+      httpError = error;
+    }
+    expect(httpError).toMatchObject({
+      status: 403,
+      transport: true,
+      failureClass: 'VERCEL_REJECTED',
+    });
+
+    const thrown = recordingProviderFetch(() => {
+      throw new Error('synthetic network failure');
+    });
+    let fetchError;
+    try {
+      await readProviderIdentity({ environment: providerEnvironment(), fetchImpl: thrown.fetchImpl });
+    } catch (error) {
+      fetchError = error;
+    }
+    expect(fetchError).toMatchObject({
+      transport: true,
+      failureClass: 'PROVIDER_UNREACHABLE',
+    });
+    expect(fetchError).not.toHaveProperty('status');
+  });
+
+  it('classifies HTTP 429 and an unparsable HTTP 200 body as unreachable', async () => {
+    const limited = recordingProviderFetch((url) =>
+      url.includes('api.vercel.com') ? providerJsonResponse(429, {}) : undefined
+    );
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: limited.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'PROVIDER_UNREACHABLE' });
+
+    const malformed = recordingProviderFetch((url) =>
+      url.includes('api.vercel.com') ? providerJsonResponse(200, {}, true) : undefined
+    );
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: malformed.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'PROVIDER_UNREACHABLE' });
+  });
+
+  it('classifies Vercel HTTP 403 as rejected', async () => {
+    const fetch = recordingProviderFetch((url) =>
+      url.includes('api.vercel.com') ? providerJsonResponse(403, {}) : undefined
+    );
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'VERCEL_REJECTED' });
+  });
+
+  it('classifies Vercel identity mismatch as an identity failure', async () => {
+    const fetch = recordingProviderFetch(async (url, options, baseFetch) => {
+      if (!url.includes('/v13/deployments/')) return undefined;
+      const response = await baseFetch(url, options);
+      const body = await response.json();
+      return { ...response, json: async () => ({ ...body, projectId: 'synthetic-other-project' }) };
+    });
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'VERCEL_IDENTITY' });
+    expect(fetch.requests).toHaveLength(2);
+  });
+
+  it.each([401, 403])('classifies Railway token-context HTTP %s as rejected', async (status) => {
+    const fetch = recordingProviderFetch((url, options) =>
+      isTokenContextRequest(url, options) ? tokenContextResponse({}, status) : undefined
+    );
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'RAILWAY_TOKEN_REJECTED' });
+    expect(fetch.requests).toHaveLength(3);
+  });
+
+  it.each(['UNAUTHENTICATED', 'UNAUTHORIZED', 'FORBIDDEN'])(
+    'classifies Railway GraphQL denial %s as rejected',
+    async (code) => {
+      const fetch = recordingProviderFetch((url, options) =>
+        isTokenContextRequest(url, options)
+          ? tokenContextResponse({ errors: [{ extensions: { code } }] })
+          : undefined
+      );
+      await expect(
+        checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+      ).resolves.toEqual({ ok: false, failureClass: 'RAILWAY_TOKEN_REJECTED' });
+      expect(fetch.requests).toHaveLength(3);
+    }
+  );
+
+  it('accepts an explicit Railway denial with a null token identity', async () => {
+    const fetch = recordingProviderFetch((url, options) =>
+      isTokenContextRequest(url, options)
+        ? tokenContextResponse({
+            data: { projectToken: null },
+            errors: [{ extensions: { code: 'FORBIDDEN' } }],
+          })
+        : undefined
+    );
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'RAILWAY_TOKEN_REJECTED' });
+    expect(fetch.requests).toHaveLength(3);
+  });
+
+  it.each([
+    [
+      'HTTP 200 internal server error',
+      { errors: [{ extensions: { code: 'INTERNAL_SERVER_ERROR' } }] },
+    ],
+    [
+      'empty errors and missing environment ID',
+      {
+        errors: [],
+        data: { projectToken: { project: { id: 'railway-project' }, environment: {} } },
+      },
+    ],
+    [
+      'mixed denial and internal server error codes',
+      {
+        errors: [
+          { extensions: { code: 'UNAUTHENTICATED' } },
+          { extensions: { code: 'INTERNAL_SERVER_ERROR' } },
+        ],
+      },
+    ],
+    ['denial with malformed data', { data: [], errors: [{ extensions: { code: 'FORBIDDEN' } }] }],
+    ['non-array errors', { errors: 'UNAUTHENTICATED' }],
+    ['errors without codes', { errors: [{ message: 'synthetic error' }] }],
+    ['missing project ID', { data: { projectToken: { project: {}, environment: { id: 'railway-environment' } } } }],
+    ['missing environment ID', { data: { projectToken: { project: { id: 'railway-project' }, environment: {} } } }],
+    ['null body', null],
+    ['odd body', []],
+  ])('classifies %s as unconfirmed', async (_label, body) => {
+    const fetch = recordingProviderFetch((url, options) =>
+      isTokenContextRequest(url, options) ? tokenContextResponse(body) : undefined
+    );
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'RAILWAY_TOKEN_UNCONFIRMED' });
+    expect(fetch.requests).toHaveLength(3);
+  });
+
+  it.each([
+    ['blank project ID', '', 'railway-environment', undefined],
+    ['blank environment ID', 'railway-project', '', undefined],
+    ['whitespace-only project ID', '  ', 'railway-environment', undefined],
+    ['padded environment ID', 'railway-project', ' railway-environment ', undefined],
+    ['errors object', 'railway-project', 'railway-environment', { message: 'synthetic error' }],
+    ['null errors', 'railway-project', 'railway-environment', null],
+    [
+      'conflicting denial',
+      'railway-project',
+      'railway-environment',
+      [{ extensions: { code: 'FORBIDDEN' } }],
+    ],
+  ])(
+    'stops before topology when the token context has %s',
+    async (_label, projectId, environmentId, errors) => {
+      const fetch = recordingProviderFetch((url, options) =>
+        isTokenContextRequest(url, options)
+          ? tokenContextResponse({
+              errors,
+              data: {
+                projectToken: { project: { id: projectId }, environment: { id: environmentId } },
+              },
+            })
+          : undefined
+      );
+      await expect(
+        checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+      ).resolves.toEqual({ ok: false, failureClass: 'RAILWAY_TOKEN_UNCONFIRMED' });
+      expect(fetch.requests).toHaveLength(3);
+    }
+  );
+
+  it.each([
+    ['matching scope', 'railway-environment'],
+    ['mismatched scope', 'synthetic-other-environment'],
+  ])('treats malformed topology errors as unconfirmed with %s', async (_label, environmentId) => {
+    const fetch = recordingProviderFetch(async (url, options, baseFetch) => {
+      if (!url.includes('backboard.railway.com')) return undefined;
+      if (isTokenContextRequest(url, options)) {
+        return tokenContextResponse({
+          data: {
+            projectToken: {
+              project: { id: 'railway-project' },
+              environment: { id: environmentId },
+            },
+          },
+        });
+      }
+      const response = await baseFetch(url, options);
+      return providerJsonResponse(200, {
+        ...(await response.json()),
+        errors: { message: 'synthetic error' },
+      });
+    });
+    const environment = providerEnvironment();
+    await expect(checkProviders({ environment, fetchImpl: fetch.fetchImpl })).resolves.toEqual({
+      ok: false,
+      failureClass: 'RAILWAY_TOKEN_UNCONFIRMED',
+    });
+    expect(fetch.requests).toHaveLength(4);
+    await expect(
+      captureProviderBaseline({
+        baselineMainSha: BASELINE_MAIN_SHA,
+        plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+        plannedPrNumber: PLANNED_PR_NUMBER,
+        planPath: PLAN_PATH,
+        planSha256: PLAN_SHA256,
+        environment,
+        fetchImpl: fetch.fetchImpl,
+      })
+    ).rejects.toThrow('Railway topology errors are malformed');
+  });
+
+  it('accepts an empty errors array with valid IDs, exactly as the capture does', async () => {
+    const fetch = recordingProviderFetch((url, options) =>
+      isTokenContextRequest(url, options)
+        ? tokenContextResponse({
+            errors: [],
+            data: {
+              projectToken: {
+                project: { id: 'railway-project' },
+                environment: { id: 'railway-environment' },
+              },
+            },
+          })
+        : undefined
+    );
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+    ).resolves.toEqual({ ok: true });
+  });
+
+  it('classifies token-context HTTP 400 as unconfirmed', async () => {
+    const fetch = recordingProviderFetch((url, options) =>
+      isTokenContextRequest(url, options) ? tokenContextResponse({}, 400) : undefined
+    );
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'RAILWAY_TOKEN_UNCONFIRMED' });
+    expect(fetch.requests).toHaveLength(3);
+  });
+
+  it('treats a topology redirect as unreachable even with a confirmed scope mismatch', async () => {
+    const fetch = recordingProviderFetch((url, options) => {
+      if (!url.includes('backboard.railway.com')) return undefined;
+      if (isTokenContextRequest(url, options)) {
+        return tokenContextResponse({
+          data: {
+            projectToken: {
+              project: { id: 'railway-project' },
+              environment: { id: 'synthetic-other-environment' },
+            },
+          },
+        });
+      }
+      return providerJsonResponse(307, {});
+    });
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'PROVIDER_UNREACHABLE' });
+    expect(fetch.requests).toHaveLength(4);
+  });
+
+  it('reports token scope mismatch without issuing an extra request', async () => {
+    const fetch = recordingProviderFetch((url, options) =>
+      isTokenContextRequest(url, options)
+        ? tokenContextResponse({
+            data: {
+              projectToken: {
+                project: { id: 'railway-project' },
+                environment: { id: 'synthetic-other-environment' },
+              },
+            },
+          })
+        : undefined
+    );
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'RAILWAY_TOKEN_SCOPE' });
+    expect(fetch.requests).toHaveLength(4);
+  });
+
+  it('keeps unreachable precedence for a scope mismatch and topology HTTP 503', async () => {
+    const fetch = recordingProviderFetch((url, options) => {
+      if (isTokenContextRequest(url, options)) {
+        return tokenContextResponse({
+          data: {
+            projectToken: {
+              project: { id: 'railway-project' },
+              environment: { id: 'synthetic-other-environment' },
+            },
+          },
+        });
+      }
+      if (url.includes('backboard.railway.com')) return providerJsonResponse(503, {});
+      return undefined;
+    });
+    await expect(
+      checkProviders({ environment: providerEnvironment(), fetchImpl: fetch.fetchImpl })
+    ).resolves.toEqual({ ok: false, failureClass: 'PROVIDER_UNREACHABLE' });
+    expect(fetch.requests).toHaveLength(4);
+  });
+
+  it('classifies a stale Railway service ID as topology failure', async () => {
+    const environment = providerEnvironment({
+      RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: 'synthetic-stale-service',
+    });
+    const fetch = recordingProviderFetch();
+    await expect(checkProviders({ environment, fetchImpl: fetch.fetchImpl })).resolves.toEqual({
+      ok: false,
+      failureClass: 'RAILWAY_TOPOLOGY',
+    });
+    expect(fetch.requests).toHaveLength(4);
+  });
+
+  it.each(['VERCEL_PROJECT_ID', 'VERCEL_TOKEN', 'VERCEL_ORG_ID'])(
+    'classifies missing %s as configuration failure',
+    async (key) => {
+      const environment = providerEnvironment();
+      delete environment[key];
+      const fetch = recordingProviderFetch();
+      await expect(checkProviders({ environment, fetchImpl: fetch.fetchImpl })).resolves.toEqual({
+        ok: false,
+        failureClass: 'CONFIGURATION',
+      });
+      expect(fetch.requests).toHaveLength(0);
+    }
+  );
+
+  it('classifies a Railway token with a trailing newline as invalid value', async () => {
+    const fetch = recordingProviderFetch();
+    await expect(
+      checkProviders({
+        environment: providerEnvironment({ RAILWAY_TOKEN: 'synthetic-railway-token\n' }),
+        fetchImpl: fetch.fetchImpl,
+      })
+    ).resolves.toEqual({ ok: false, failureClass: 'RAILWAY_TOKEN_VALUE' });
+    expect(fetch.requests).toHaveLength(0);
+  });
+
+  it('prints only the fixed configuration result when check-providers runs', () => {
+    const environment = {
+      PATH: process.env.PATH,
+      VERCEL_TOKEN: 'synthetic-vercel-token',
+      VERCEL_ORG_ID: 'synthetic-vercel-org',
+      VERCEL_PROJECT_ID: 'synthetic-vercel-project',
+      VERCEL_PRODUCTION_HOSTNAME: 'synthetic.vercel.app',
+      RAILWAY_TOKEN: 'synthetic-railway-token',
+      RAILWAY_PROJECT_ID: 'synthetic-railway-project',
+      RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: 'synthetic-fund-service',
+      RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID: 'synthetic-capital-service',
+    };
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release/capture-release-recovery-context.mjs'), 'check-providers'],
+      { encoding: 'utf8', env: environment, timeout: 30_000 }
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('PROVIDER_CHECK FAIL CONFIGURATION\n');
+    expect(result.stderr).toBe('');
+    for (const value of Object.values(environment)) {
+      if (value !== environment.PATH) {
+        expect(`${result.stdout}${result.stderr}`).not.toContain(value);
+      }
+    }
+  });
+
+  it('rejects any check-providers argument with the fixed unexpected result', () => {
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/release/capture-release-recovery-context.mjs'), 'check-providers', 'extra'],
+      { encoding: 'utf8', env: { PATH: process.env.PATH }, timeout: 30_000 }
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('PROVIDER_CHECK FAIL UNEXPECTED\n');
+    expect(result.stderr).toBe('');
+  });
+
+  it('returns UNEXPECTED instead of throwing for an unclassified error', async () => {
+    await expect(checkProviders(null)).resolves.toEqual({
+      ok: false,
+      failureClass: 'UNEXPECTED',
+    });
   });
 });
 

@@ -13428,7 +13428,9 @@ provider, or release authority.
 ## ADR-110: One-Time Railway Credential Repair Without GitHub CAS
 
 **Date:** 2026-10-21 **Status:** Owner-approved; effective only after policy/ADR
-admission to protected main
+admission to protected main. Its single action budget was consumed on
+2026-11-02; any further Railway Production token replacement uses ADR-118 once
+ratified.
 
 ### Context
 
@@ -14085,3 +14087,88 @@ recovery reference only:
 # body.json: {"ssoProtection":{"deploymentType":"all_except_custom_domains"}}
 vercel api '/v9/projects/<project-id>?teamId=<team-id>' --method PATCH --input body.json
 ```
+
+## ADR-118: Owner-Run Railway Production Token Replacement
+
+**Date:** Set on owner ratification. **Status:** Proposed. Takes effect only
+with explicit owner ratification and protected-main admission of the matching
+policy section, procedure, and check workflow.
+
+**Context.** Every release mode needs a valid GitHub `Production`
+`RAILWAY_TOKEN`. Railway invalidated pre-incident tokens on 2026-10-22. The
+ADR-110 route consumed its single action budget on 2026-11-02 with an unknown
+creation outcome and no GitHub write. GitHub's environment-secret write has no
+documented conditional-update contract, so the retained optimistic-locking
+mandate blocks any replacement without an explicit exception.
+
+**Decision.**
+
+1. Admit a standing owner-run route, "Railway production token replacement
+   (ADR-118)" in `docs/workflows/PRODUCTION_SCRIPTS.md`, for replacing the
+   `Production` secret `RAILWAY_TOKEN` with one Railway project token scoped to
+   the Production environment. Each use is a separate owner action. The owner
+   creates the token in the Railway dashboard and writes it with `gh secret set`
+   from standard input. The token plaintext never enters an agent session, a
+   file, shell history, or the repository. Inventory must verify the existing
+   `RAILWAY_TOKEN` metadata before creating a token. Provisioning a missing
+   secret requires separate authorization.
+2. For each use, the owner's explicit acceptance of the concurrent-writer
+   overwrite risk replaces optimistic locking for that use's secret writes, at
+   most three. Each write is followed by metadata readback. The exception covers
+   no other secret, variable, or provider setting. Before `gh secret set`, each
+   attempt reserves and increments its writes-used slot and records a pending
+   result; interruption leaves an unknown result and consumed slot. The write
+   result is recorded independently of clipboard clearing. Each attempt also
+   records its token label, creation time, readback status, and provider-check
+   workflow run ID, run attempt, and result. Every post-write revocation
+   requires a recorded acknowledged write, a matching completed metadata
+   readback, and a fresh provider check dispatched after that readback for the
+   same write.
+3. Each use starts with the read-only check against the stored token; a `PASS`
+   ends the use without a replacement. A created token whose plaintext is lost,
+   or that the check refuses for a confirmed token reason, is revoked before
+   another is created. A use permits at most three secret writes. There is never
+   more than one unrevoked unused token. An ambiguous provider result never
+   leads to revocation. A failed or unknown write, or an absent, failed, or
+   mismatched readback, preserves both the created token and the token
+   previously stored by GitHub, blocks revocation, and never resets writes used.
+   A use that stops after a write stays open. It resumes at its earliest
+   incomplete recorded phase. A conclusively completed cleanup resumes directly
+   at its record. If any cleanup revocation is incomplete, failed, or unknown,
+   the provider check runs again before remaining revocation. That cleanup
+   recheck is `PASS`-only; any other result preserves the newly stored token and
+   every remaining token, and no revoke-and-recreate branch applies after
+   cleanup starts. A `PASS` then permits completing every outstanding revocation
+   and its record.
+4. A use completes only when the read-only workflow
+   `production-provider-check.yml` reports `PASS` against the stored
+   `Production` secrets and variables. On the owner's explicit instruction, one
+   delegated local executor may dispatch that workflow from `main`. Only the
+   owner approves its `Production` environment gate; the executor never approves
+   a deployment or environment review.
+5. The private record marks cleanup started before its first revocation. The
+   initial stored-token `PASS` never supplies cleanup authority. After the first
+   eligible post-write `PASS`, the owner revokes the original Production project
+   token and any token created by the 2026-11-02 ADR-110 attempt. This replaces
+   ADR-110's rule to retain those two records. Later uses revoke the token they
+   replace after an eligible post-write `PASS`.
+6. The route's inventory step replaces only the token inventory and
+   original-token record readings of the F_1.3.7 readings (F_1.3.8 G2). The
+   worker readings and the access-anomaly review remain owner readings.
+
+**Consequences.** ADR-110 is superseded for any further Railway Production token
+replacement; its receipt and outcome stay historical evidence. The provider
+check is evidence, not authorization: it does not admit a release, close G1 by
+itself, or replace the release capture. The route authorizes no deployment,
+promotion, variable change, service change, database action, or other
+credential.
+
+**Accepted risks.** Another GitHub writer can overwrite the secret, or be
+overwritten, between the readback and later use; metadata readback cannot prove
+the stored value. GitHub never returns secret plaintext, so only the provider
+check shows the stored value works. Revoked tokens cannot be restored.
+
+**Alternatives.** Keep waiting for a conditional-write contract (blocks every
+release). A tracked helper that calls both APIs (more code, same lost-plaintext
+failure mode). A token-scope query as the only check (passes a stale service
+ID). A one-time route (the next token incident would need another ADR).

@@ -29,14 +29,76 @@ const VERCEL_HOST = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.vercel\.app$/;
 const GITHUB_REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const RAILWAY_API_URL = 'https://backboard.railway.com/graphql/v2';
 const PROVIDER_TIMEOUT_MS = 15_000;
+const RAILWAY_TOKEN_DENIAL_CODES = Object.freeze([
+  'UNAUTHENTICATED',
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+]);
+const PROVIDER_FAILURE_CLASSES = Object.freeze([
+  'CONFIGURATION',
+  'RAILWAY_TOKEN_VALUE',
+  'PROVIDER_UNREACHABLE',
+  'VERCEL_REJECTED',
+  'VERCEL_IDENTITY',
+  'RAILWAY_TOKEN_REJECTED',
+  'RAILWAY_TOKEN_UNCONFIRMED',
+  'RAILWAY_TOKEN_SCOPE',
+  'RAILWAY_TOPOLOGY',
+  'UNEXPECTED',
+]);
 export const DEFAULT_GIT_FETCH_TIMEOUT_MS = 2 * 60_000;
 const execFileAsync = promisify(execFile);
 
-function fail(message, { transport = false } = {}) {
+function fail(message, { transport = false, status } = {}) {
   const error = new Error(`Release recovery context capture failed: ${message}`);
   // Transport failures are never evidence mismatches; discovery must not skip them.
   if (transport) error.transport = true;
+  if (status !== undefined) error.status = status;
   throw error;
+}
+
+// Only RAILWAY_TOKEN_REJECTED confirms a token refusal; ambiguous results never do.
+function classifyProviderFailure(error, phase, scopeMismatch = false) {
+  const status = error?.status;
+  const unreachable = !Number.isInteger(status) || status < 400 || status === 429 || status >= 500;
+  let failureClass;
+  if (phase === 'configuration') failureClass = 'CONFIGURATION';
+  else if (phase === 'railway-token-value') failureClass = 'RAILWAY_TOKEN_VALUE';
+  else if (phase === 'vercel-identity') failureClass = 'VERCEL_IDENTITY';
+  else if (phase === 'railway-token-denial') failureClass = 'RAILWAY_TOKEN_REJECTED';
+  else if (phase === 'railway-evidence') failureClass = 'RAILWAY_TOKEN_UNCONFIRMED';
+  else if (phase === 'vercel-request') {
+    failureClass = unreachable ? 'PROVIDER_UNREACHABLE' : 'VERCEL_REJECTED';
+  } else if (phase === 'railway-token-request') {
+    failureClass = unreachable
+      ? 'PROVIDER_UNREACHABLE'
+      : status === 401 || status === 403
+        ? 'RAILWAY_TOKEN_REJECTED'
+        : 'RAILWAY_TOKEN_UNCONFIRMED';
+  } else if (phase === 'railway-topology-request') {
+    failureClass = unreachable
+      ? 'PROVIDER_UNREACHABLE'
+      : scopeMismatch
+        ? 'RAILWAY_TOKEN_SCOPE'
+        : 'RAILWAY_TOPOLOGY';
+  } else {
+    failureClass = scopeMismatch ? 'RAILWAY_TOKEN_SCOPE' : 'RAILWAY_TOPOLOGY';
+  }
+  const classified = error instanceof Error ? error : new Error('Provider check failed');
+  classified.failureClass = failureClass;
+  return classified;
+}
+
+function isRailwayTokenDenial(errors) {
+  return (
+    Array.isArray(errors) &&
+    errors.length > 0 &&
+    errors.every((entry) => RAILWAY_TOKEN_DENIAL_CODES.includes(entry?.extensions?.code))
+  );
+}
+
+function hasMalformedRailwayErrors(errors) {
+  return errors !== undefined && !Array.isArray(errors);
 }
 
 function plainObject(value, label) {
@@ -363,18 +425,19 @@ async function responseJson(fetchImpl, url, options, label) {
   try {
     response = await fetchImpl(url, {
       ...options,
+      redirect: 'error',
       signal: globalThis.AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     });
   } catch {
     fail(`${label} request failed`, { transport: true });
   }
   if (!response?.ok || typeof response.json !== 'function') {
-    fail(`${label} request failed`, { transport: true });
+    fail(`${label} request failed`, { transport: true, status: response?.status });
   }
   try {
     return await response.json();
   } catch {
-    fail(`${label} response is malformed`, { transport: true });
+    fail(`${label} response is malformed`, { transport: true, status: response?.status });
   }
 }
 
@@ -403,6 +466,212 @@ function providerCaptureInput({
   };
 }
 
+export async function readProviderIdentity({ environment = process.env, fetchImpl = globalThis.fetch } = {}) {
+  let expected;
+  try {
+    expected = providerExpectedIdentity(environment);
+  } catch (error) {
+    throw classifyProviderFailure(error, 'configuration');
+  }
+  let vercelToken;
+  let vercelOrgId;
+  try {
+    vercelToken = requiredSecretEnvironment(environment, 'VERCEL_TOKEN');
+    vercelOrgId = identifier(
+      requiredEnvironment(environment, 'VERCEL_ORG_ID'),
+      'Vercel organization ID'
+    );
+  } catch (error) {
+    throw classifyProviderFailure(error, 'configuration');
+  }
+  let railwayToken;
+  try {
+    railwayToken = requiredSecretEnvironment(environment, 'RAILWAY_TOKEN');
+  } catch (error) {
+    throw classifyProviderFailure(error, 'railway-token-value');
+  }
+
+  let vercelDeployment;
+  try {
+    vercelDeployment = await responseJson(
+      fetchImpl,
+      `https://api.vercel.com/v13/deployments/${expected.vercelHostname}?teamId=${vercelOrgId}`,
+      { headers: { Authorization: `Bearer ${vercelToken}` } },
+      'Vercel deployment'
+    );
+  } catch (error) {
+    throw classifyProviderFailure(error, 'vercel-request');
+  }
+  try {
+    assertSafeVercelDeploymentUrl(vercelDeployment?.url);
+  } catch (error) {
+    throw classifyProviderFailure(error, 'vercel-identity');
+  }
+  let aliasesUrl;
+  try {
+    aliasesUrl = vercelDeploymentAliasesUrl(vercelDeployment?.id, vercelOrgId);
+  } catch (error) {
+    throw classifyProviderFailure(error, 'vercel-identity');
+  }
+  let vercelAliases;
+  try {
+    vercelAliases = await responseJson(
+      fetchImpl,
+      aliasesUrl,
+      { headers: { Authorization: `Bearer ${vercelToken}` } },
+      'Vercel deployment aliases'
+    );
+  } catch (error) {
+    throw classifyProviderFailure(error, 'vercel-request');
+  }
+  let vercel;
+  try {
+    vercel = verifyVercelEvidence(
+      { deployment: withCurrentVercelAliases(vercelDeployment, vercelAliases) },
+      expected.vercelProjectId,
+      { kind: 'canonical_baseline', canonicalHostname: expected.vercelHostname }
+    );
+  } catch (error) {
+    throw classifyProviderFailure(error, 'vercel-identity');
+  }
+  const railwayHeaders = {
+    'Content-Type': 'application/json',
+    'Project-Access-Token': railwayToken,
+  };
+  let token;
+  try {
+    token = await responseJson(
+      fetchImpl,
+      RAILWAY_API_URL,
+      {
+        method: 'POST',
+        headers: railwayHeaders,
+        body: JSON.stringify({ query: 'query { projectToken { project { id } environment { id } } }' }),
+      },
+      'Railway token context'
+    );
+  } catch (error) {
+    throw classifyProviderFailure(error, 'railway-token-request');
+  }
+  const tokenData = token?.data;
+  const projectToken = tokenData?.projectToken;
+  const projectId = projectToken?.project?.id;
+  const environmentId = projectToken?.environment?.id;
+  try {
+    if (
+      hasMalformedRailwayErrors(token?.errors) ||
+      token?.errors?.length ||
+      typeof projectId !== 'string' ||
+      !IDENTIFIER.test(projectId) ||
+      typeof environmentId !== 'string' ||
+      !IDENTIFIER.test(environmentId)
+    ) {
+      fail('Railway token context is malformed');
+    }
+  } catch (error) {
+    const hasDenialData =
+      tokenData == null ||
+      (typeof tokenData === 'object' && !Array.isArray(tokenData) && projectToken === null);
+    throw classifyProviderFailure(
+      error,
+      hasDenialData && isRailwayTokenDenial(token?.errors)
+        ? 'railway-token-denial'
+        : 'railway-evidence'
+    );
+  }
+  // Comparison only: verifyRailwayTopology refuses this mismatch after the next request.
+  const scopeMismatch =
+    projectId !== expected.railwayProjectId || environmentId !== expected.railwayEnvironmentId;
+  let control;
+  try {
+    control = await responseJson(
+      fetchImpl,
+      RAILWAY_API_URL,
+      {
+        method: 'POST',
+        headers: railwayHeaders,
+        body: JSON.stringify({
+          query:
+            'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } } }',
+          variables: { projectId, environmentId },
+        }),
+      },
+      'Railway topology'
+    );
+  } catch (error) {
+    throw classifyProviderFailure(error, 'railway-topology-request', scopeMismatch);
+  }
+  const malformedTopologyErrors = hasMalformedRailwayErrors(control?.errors);
+  let provider;
+  try {
+    if (malformedTopologyErrors) {
+      fail('Railway topology errors are malformed');
+    }
+    const railwayResponse = {
+      data: {
+        projectId,
+        environmentId,
+        environment: control?.data?.environment,
+      },
+      errors: control?.errors,
+    };
+    const normalizedRailway = normalizeRailwayResponse(railwayResponse);
+    const railwaySourceSha = normalizedRailway.services.find(
+      (service) => service.serviceName === 'fund-scenario-calc'
+    )?.latestDeployment?.meta?.commitHash;
+    if (typeof railwaySourceSha !== 'string' || !SHA.test(railwaySourceSha)) {
+      fail('Railway protected source SHA is invalid');
+    }
+    const railway = verifyRailwayTopology(railwayResponse, railwaySourceSha, {
+      projectId: expected.railwayProjectId,
+      environmentId: expected.railwayEnvironmentId,
+      services: expected.railwayServices,
+    });
+    const sourceByService = new Map(
+      normalizedRailway.services.map((service) => [
+        service.serviceName,
+        service.latestDeployment?.meta?.commitHash,
+      ])
+    );
+    provider = {
+      vercel: {
+        projectId: vercel.projectId,
+        deploymentId: vercel.deploymentId,
+        hostname: expected.vercelHostname,
+        sourceSha: vercel.sourceSha,
+      },
+      railway: {
+        projectId: railway.projectId,
+        environmentId: railway.environmentId,
+        services: railway.services.map((service) => ({
+          ...service,
+          sourceSha: sourceByService.get(service.serviceName),
+        })),
+      },
+    };
+  } catch (error) {
+    throw classifyProviderFailure(
+      error,
+      malformedTopologyErrors ? 'railway-evidence' : 'railway-topology',
+      scopeMismatch
+    );
+  }
+  return { expectedIdentity: expected, providerIdentity: provider };
+}
+
+export async function checkProviders(options = {}) {
+  try {
+    const { environment = process.env, fetchImpl = globalThis.fetch } = options;
+    await readProviderIdentity({ environment, fetchImpl });
+    return { ok: true };
+  } catch (error) {
+    const failureClass = PROVIDER_FAILURE_CLASSES.includes(error?.failureClass)
+      ? error.failureClass
+      : 'UNEXPECTED';
+    return { ok: false, failureClass };
+  }
+}
+
 export async function captureProviderBaseline({
   baselineMainSha,
   plannedPrHeadSha,
@@ -419,87 +688,8 @@ export async function captureProviderBaseline({
   pullRequestNumber(plannedPrNumber, 'planned PR number');
   planPath(capturedPlanPath);
   sha256(planSha256, 'plan SHA-256');
-  const expected = providerExpectedIdentity(environment);
-  const vercelToken = requiredSecretEnvironment(environment, 'VERCEL_TOKEN');
-  const vercelOrgId = identifier(requiredEnvironment(environment, 'VERCEL_ORG_ID'), 'Vercel organization ID');
-  const railwayToken = requiredSecretEnvironment(environment, 'RAILWAY_TOKEN');
-  const vercelDeployment = await responseJson(
-    fetchImpl,
-    `https://api.vercel.com/v13/deployments/${expected.vercelHostname}?teamId=${vercelOrgId}`,
-    { headers: { Authorization: `Bearer ${vercelToken}` } },
-    'Vercel deployment'
-  );
-  assertSafeVercelDeploymentUrl(vercelDeployment?.url);
-  const vercelAliases = await responseJson(
-    fetchImpl,
-    vercelDeploymentAliasesUrl(vercelDeployment?.id, vercelOrgId),
-    { headers: { Authorization: `Bearer ${vercelToken}` } },
-    'Vercel deployment aliases'
-  );
-  const vercel = verifyVercelEvidence(
-    { deployment: withCurrentVercelAliases(vercelDeployment, vercelAliases) },
-    expected.vercelProjectId,
-    { kind: 'canonical_baseline', canonicalHostname: expected.vercelHostname }
-  );
-  const railwayHeaders = {
-    'Content-Type': 'application/json',
-    'Project-Access-Token': railwayToken,
-  };
-  const token = await responseJson(
-    fetchImpl,
-    RAILWAY_API_URL,
-    {
-      method: 'POST',
-      headers: railwayHeaders,
-      body: JSON.stringify({ query: 'query { projectToken { project { id } environment { id } } }' }),
-    },
-    'Railway token context'
-  );
-  const projectId = token?.data?.projectToken?.project?.id;
-  const environmentId = token?.data?.projectToken?.environment?.id;
-  if (token?.errors?.length || typeof projectId !== 'string' || typeof environmentId !== 'string') {
-    fail('Railway token context is malformed');
-  }
-  const control = await responseJson(
-    fetchImpl,
-    RAILWAY_API_URL,
-    {
-      method: 'POST',
-      headers: railwayHeaders,
-      body: JSON.stringify({
-        query:
-          'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } } }',
-        variables: { projectId, environmentId },
-      }),
-    },
-    'Railway topology'
-  );
-  const railwayResponse = {
-    data: {
-      projectId,
-      environmentId,
-      environment: control?.data?.environment,
-    },
-    errors: control?.errors,
-  };
-  const normalizedRailway = normalizeRailwayResponse(railwayResponse);
-  const railwaySourceSha = normalizedRailway.services.find(
-    (service) => service.serviceName === 'fund-scenario-calc'
-  )?.latestDeployment?.meta?.commitHash;
-  if (typeof railwaySourceSha !== 'string' || !SHA.test(railwaySourceSha)) {
-    fail('Railway protected source SHA is invalid');
-  }
-  const railway = verifyRailwayTopology(railwayResponse, railwaySourceSha, {
-    projectId: expected.railwayProjectId,
-    environmentId: expected.railwayEnvironmentId,
-    services: expected.railwayServices,
-  });
-  const sourceByService = new Map(
-    normalizedRailway.services.map((service) => [
-      service.serviceName,
-      service.latestDeployment?.meta?.commitHash,
-    ])
-  );
+  const { expectedIdentity: expected, providerIdentity: provider } =
+    await readProviderIdentity({ environment, fetchImpl });
   return buildReleaseRecoveryContext(
     providerCaptureInput({
       baselineMainSha,
@@ -509,22 +699,7 @@ export async function captureProviderBaseline({
       planSha256,
       environment,
       expectedIdentity: expected,
-      providerIdentity: {
-        vercel: {
-          projectId: vercel.projectId,
-          deploymentId: vercel.deploymentId,
-          hostname: expected.vercelHostname,
-          sourceSha: vercel.sourceSha,
-        },
-        railway: {
-          projectId: railway.projectId,
-          environmentId: railway.environmentId,
-          services: railway.services.map((service) => ({
-            ...service,
-            sourceSha: sourceByService.get(service.serviceName),
-          })),
-        },
-      },
+      providerIdentity: provider,
       capturedAt: now(),
     })
   );
@@ -1493,8 +1668,27 @@ function parseArguments(args, expectedKeys) {
   return parsed;
 }
 
+function printProviderCheckResult(result) {
+  if (result.ok) {
+    console.log('PROVIDER_CHECK PASS');
+    process.exitCode = 0;
+    return;
+  }
+  console.log(`PROVIDER_CHECK FAIL ${result.failureClass}`);
+  process.exitCode = 1;
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
+  if (command === 'check-providers') {
+    if (args.length > 0) {
+      console.log('PROVIDER_CHECK FAIL UNEXPECTED');
+      process.exitCode = 1;
+      return;
+    }
+    printProviderCheckResult(await checkProviders());
+    return;
+  }
   if (command === 'validate-baseline') {
     const options = parseArguments(args, [
       '--baseline-main-sha',

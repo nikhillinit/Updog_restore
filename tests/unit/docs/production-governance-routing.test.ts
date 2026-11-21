@@ -284,6 +284,107 @@ describe('production governance documentation routing', () => {
     expect(successor).not.toContain('independently reviewed');
   });
 
+  it('pins the proposed ADR-118 token replacement route and its authority limits', async () => {
+    const decisions = flattenWhitespace(await readRepositoryFile('DECISIONS.md'));
+    const policy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const guide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+
+    expect(decisions).toContain('## ADR-118: Owner-Run Railway Production Token Replacement');
+    expect(decisions).toContain(
+      '**Date:** Set on owner ratification. **Status:** Proposed. Takes effect only with explicit owner ratification and protected-main admission of the matching policy section, procedure, and check workflow.'
+    );
+    expect(decisions).toContain(
+      "For each use, the owner's explicit acceptance of the concurrent-writer overwrite risk replaces optimistic locking for that use's secret writes, at most three."
+    );
+    expect(decisions).toContain(
+      'Each use starts with the read-only check against the stored token; a `PASS` ends the use without a replacement.'
+    );
+    expect(decisions).toContain('A use permits at most three secret writes.');
+    expect(decisions).toContain('An ambiguous provider result never leads to revocation.');
+    expect(decisions).toContain(
+      'Before `gh secret set`, each attempt reserves and increments its writes-used slot and records a pending result; interruption leaves an unknown result and consumed slot.'
+    );
+    expect(decisions).toContain(
+      'Every post-write revocation requires a recorded acknowledged write, a matching completed metadata readback, and a fresh provider check dispatched after that readback for the same write.'
+    );
+    expect(decisions).toContain(
+      'A failed or unknown write, or an absent, failed, or mismatched readback, preserves both the created token and the token previously stored by GitHub, blocks revocation, and never resets writes used.'
+    );
+    expect(decisions).toContain('A conclusively completed cleanup resumes directly at its record.');
+    expect(decisions).toContain(
+      'That cleanup recheck is `PASS`-only; any other result preserves the newly stored token and every remaining token, and no revoke-and-recreate branch applies after cleanup starts.'
+    );
+    expect(decisions).toContain(
+      'The private record marks cleanup started before its first revocation. The initial stored-token `PASS` never supplies cleanup authority.'
+    );
+    expect(decisions).toContain('the executor never approves a deployment or environment review.');
+    expect(decisions).toContain(
+      'Its single action budget was consumed on 2026-11-02; any further Railway Production token replacement uses ADR-118 once ratified.'
+    );
+
+    expect(policy).toContain('## Railway production token replacement (ADR-118)');
+    expect(policy).toContain(
+      'This route authorizes no deployment, promotion, or other provider, database, or credential change.'
+    );
+    expect(policy).toContain(
+      'Each attempt reserves and increments its writes-used slot before `gh secret set` and records a pending result, so interruption cannot restore the budget or erase an unknown outcome.'
+    );
+    expect(policy).toContain(
+      'a conclusively completed cleanup resumes directly at its private record.'
+    );
+    expect(policy).toContain(
+      "ADR-118 permits one delegated local executor to dispatch only the read-only provider check workflow `production-provider-check.yml` on the owner's explicit instruction; approval of its `Production` environment gate stays with the owner, and the issuer does not change."
+    );
+    expect(policy).toContain("This action's budget is consumed; later replacements use ADR-118.");
+
+    expect(guide).toContain('## Railway production token replacement (ADR-118)');
+    expect(guide).toContain(
+      'Do not use step 2 for an open use; resume it only from its recorded phase under step 10.'
+    );
+    expect(guide).toContain(
+      '`RAILWAY_TOKEN_UNCONFIRMED`: never revoke. Rerun at least five minutes later; if it repeats, stop, keep the new token, and leave the use open until a rerun gives `PASS` or a confirmed class.'
+    );
+    expect(guide).toContain(
+      'This replaces the stored token but revokes none of the previously existing tokens until `PASS`.'
+    );
+    expect(guide).toContain(
+      'An interruption leaves the pending result unknown and consumes the reserved write. Only an acknowledged write continues to step 6.'
+    );
+    expect(guide).toContain(
+      'Record the captured `gh secret set` status independently of `pbcopy` as acknowledged, failed, or unknown.'
+    );
+    expect(guide).toContain(
+      'If step 8 is conclusively complete and only step 9 remains, resume directly at step 9.'
+    );
+    expect(guide).toContain(
+      'Before the first revocation, privately record that cleanup started. On the eligible post-write `PASS`'
+    );
+    expect(guide).toContain(
+      "Any non-`PASS` result stops cleanup and preserves the newly stored token and every remaining token; none of step 7's revoke-and-recreate branches apply after cleanup has started."
+    );
+  });
+
+  it('requires existing Railway secret metadata during inventory before token creation', async () => {
+    const plan = flattenWhitespace(
+      await readRepositoryFile(
+        'docs/1-plans/F_1.3.10_railway-production-token-replacement-route.plan.md'
+      )
+    );
+    const guide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
+    const policy = flattenWhitespace(await readRepositoryFile(policyPath));
+    const decisions = flattenWhitespace(await readRepositoryFile('DECISIONS.md'));
+    const precondition =
+      'Verify that the GitHub `Production` environment already has a `RAILWAY_TOKEN` secret and privately record its `created_at` and `updated_at`. If the secret is absent or its metadata cannot be verified, stop before creating a Railway token or writing a GitHub secret. Provisioning a missing secret requires separate authorization.';
+
+    expect(guide).toContain(`${precondition} 4. **Create:**`);
+    expect(plan).toContain(`${precondition} 4. Create:`);
+    for (const authority of [policy, decisions]) {
+      expect(authority).toContain(
+        'Inventory must verify the existing `RAILWAY_TOKEN` metadata before creating a token. Provisioning a missing secret requires separate authorization.'
+      );
+    }
+  });
+
   it('admits owner-run production user provisioning with its gates and procedure', async () => {
     const flatPolicy = flattenWhitespace(await readRepositoryFile(policyPath));
     const flatGuide = flattenWhitespace(await readRepositoryFile(canonicalGuidePath));
