@@ -221,7 +221,7 @@ export async function createValuationHttpFixture() {
         credential
       );
     }
-    return { observer, token, seed, projection, send, sendPath, cleanup };
+    return { app, observer, token, seed, projection, send, sendPath, cleanup };
   } catch (error) {
     try {
       await cleanup();

@@ -1,9 +1,17 @@
 /*
- * Real-guard contract: requireAuth is mocked to inject req.user; requireFundAccess is the REAL guard. Deny = caller fundIds [1] targeting fund 2. The exact toBe(403) (not just not-200) ensures the :fundId reached the guard; a 400 would mean it did not.
+ * Real-guard contract: requireAuth is mocked to inject req.user; requireWriteRole and
+ * requireFundAccess are real guards. Exact 403 assertions prove denial happens before
+ * request parsing or durable work.
  */
 import express, { type NextFunction, type Request, type Response } from 'express';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const authState = vi.hoisted(() => ({
+  role: 'partner',
+  fundIds: [1] as number[],
+  lpId: undefined as number | undefined,
+}));
 
 const dbState = vi.hoisted(() => {
   const calls = { select: 0, insert: 0, update: 0, delete: 0 };
@@ -54,11 +62,12 @@ vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
         id: 'u1',
         sub: 'u1',
         email: 'u@example.com',
-        role: 'partner',
-        roles: ['partner'],
+        role: authState.role,
+        roles: [authState.role],
         ip: '127.0.0.1',
         userAgent: 'vitest',
-        fundIds: [1],
+        fundIds: [...authState.fundIds],
+        ...(authState.lpId !== undefined && { lpId: authState.lpId }),
       };
       next();
     },
@@ -108,6 +117,118 @@ describe('lp-reporting metric-runs fund-scope guard contract', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetDbCalls();
+    authState.role = 'partner';
+    authState.fundIds = [1];
+    authState.lpId = undefined;
+  });
+
+  it.each<DeniedEndpoint>([
+    { method: 'POST', path: '/api/funds/1/metric-runs/commit', body: {} },
+    {
+      method: 'POST',
+      path: '/api/funds/1/metric-runs/123/report-package/exports/json',
+      body: {},
+    },
+    {
+      method: 'POST',
+      path: '/api/funds/1/metric-runs/123/report-package/exports/csv',
+      body: {},
+    },
+    { method: 'POST', path: '/api/funds/1/metric-runs/123/report-package', body: {} },
+    { method: 'POST', path: '/api/funds/1/metric-runs/123/evidence-records', body: {} },
+    { method: 'POST', path: '/api/funds/1/metric-runs/123/narrative-runs', body: {} },
+    {
+      method: 'PATCH',
+      path: '/api/funds/1/metric-runs/123/narrative-runs/456',
+      body: {},
+    },
+    {
+      method: 'POST',
+      path: '/api/funds/1/metric-runs/123/narrative-runs/456/review',
+      body: {},
+    },
+    {
+      method: 'POST',
+      path: '/api/funds/1/metric-runs/123/narrative-runs/456/approve',
+      body: {},
+    },
+  ])('denies LP-linked partner token write $method $path before db work', async (endpoint) => {
+    authState.role = 'partner';
+    authState.fundIds = [1];
+    authState.lpId = 7;
+
+    const res = await requestEndpoint(endpoint);
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({
+      error: 'Forbidden',
+      code: 'TEAM_WRITE_REQUIRED',
+      message: 'A team write role is required for this operation',
+    });
+    expect(dbState.calls.select).toBe(0);
+    expect(dbState.calls.insert).toBe(0);
+    expect(dbState.calls.update).toBe(0);
+    expect(dbState.calls.delete).toBe(0);
+  });
+
+  it.each<DeniedEndpoint>([
+    {
+      method: 'POST',
+      path: '/api/funds/1/metric-runs/123/report-package/exports/json',
+      body: {},
+    },
+    {
+      method: 'POST',
+      path: '/api/funds/1/metric-runs/123/report-package/exports/csv',
+      body: {},
+    },
+    {
+      method: 'POST',
+      path: '/api/funds/1/metric-runs/123/narrative-runs/456/review',
+      body: {},
+    },
+    {
+      method: 'POST',
+      path: '/api/funds/1/metric-runs/123/narrative-runs/456/approve',
+      body: {},
+    },
+  ])('denies analyst partner-only write $method $path before db work', async (endpoint) => {
+    authState.role = 'analyst';
+
+    const res = await requestEndpoint(endpoint);
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual(
+      expect.objectContaining({
+        code: 'WRITE_ROLE_REQUIRED',
+      })
+    );
+    expect(dbState.calls.select).toBe(0);
+    expect(dbState.calls.insert).toBe(0);
+    expect(dbState.calls.update).toBe(0);
+    expect(dbState.calls.delete).toBe(0);
+  });
+
+  it.each<DeniedEndpoint>([
+    { method: 'POST', path: '/api/funds/1/metric-runs/commit', body: {} },
+    { method: 'POST', path: '/api/funds/1/metric-runs/123/report-package', body: {} },
+    { method: 'POST', path: '/api/funds/1/metric-runs/123/evidence-records', body: {} },
+    { method: 'POST', path: '/api/funds/1/metric-runs/123/narrative-runs', body: {} },
+    {
+      method: 'PATCH',
+      path: '/api/funds/1/metric-runs/123/narrative-runs/456',
+      body: {},
+    },
+  ])('allows analyst routine write through role boundary $method $path', async (endpoint) => {
+    authState.role = 'analyst';
+
+    const res = await requestEndpoint(endpoint);
+
+    expect(res.status).not.toBe(403);
+    expect(dbState.calls.select).toBe(0);
+    expect(dbState.calls.insert).toBe(0);
+    expect(dbState.calls.update).toBe(0);
+    expect(dbState.calls.delete).toBe(0);
   });
 
   // Writes stay fund-scoped: a cross-fund mutation is denied before any db work.
@@ -125,6 +246,7 @@ describe('lp-reporting metric-runs fund-scope guard contract', () => {
     expect(res.body).toEqual(
       expect.objectContaining({
         error: 'Forbidden',
+        code: 'FUND_ACCESS_DENIED',
         message: 'You do not have access to fund 2',
       })
     );
@@ -160,6 +282,7 @@ describe('lp-reporting metric-runs fund-scope guard contract', () => {
     expect(res.body).toEqual(
       expect.objectContaining({
         error: 'Forbidden',
+        code: 'FUND_ACCESS_DENIED',
         message: 'You do not have access to fund 2',
       })
     );

@@ -1718,6 +1718,7 @@ describe('POST /api/funds/:fundId/metric-runs/commit', () => {
   });
 
   it('requires fund access', async () => {
+    authState.role = 'partner';
     const res = await request(buildApp())
       .post('/api/funds/99/metric-runs/commit')
       .send({
@@ -1725,6 +1726,7 @@ describe('POST /api/funds/:fundId/metric-runs/commit', () => {
         previewHash: 'a'.repeat(64),
       });
     expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FUND_ACCESS_DENIED');
   });
 
   it('rejects invalid body shape', async () => {
@@ -1848,6 +1850,7 @@ describe('metric-run evidence routes', () => {
   });
 
   it('POST requires fund access', async () => {
+    authState.role = 'partner';
     authState.fundIds = [2];
 
     const res = await request(buildApp())
@@ -1855,7 +1858,7 @@ describe('metric-run evidence routes', () => {
       .send(evidenceBody());
 
     expect(res.status).toBe(403);
-    expect(res.body.error).toBe('Forbidden');
+    expect(res.body).toMatchObject({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
     expect(dbState.insertedEvidenceRows).toHaveLength(0);
   });
 
@@ -2376,14 +2379,18 @@ describe('metric-run narrative routes', () => {
 });
 
 describe('metric-run report package routes', () => {
-  it('allows analyst with matching fund grant across all Surface-A export routes', async () => {
+  it('allows analyst reads but denies qualified export creation', async () => {
     authState.role = 'analyst';
     authState.fundIds = [1];
 
     for (const route of REPORT_PACKAGE_EXPORT_ROUTE_PROBES) {
       const res = await requestExportProbe(buildApp(), route);
 
-      expect(res.status, `${route.method} ${route.path}`).not.toBe(403);
+      if (route.method === 'POST') {
+        expect(res.status, `${route.method} ${route.path}`).toBe(403);
+      } else {
+        expect(res.status, `${route.method} ${route.path}`).not.toBe(403);
+      }
     }
   });
 
@@ -2420,7 +2427,7 @@ describe('metric-run report package routes', () => {
     }
   );
 
-  it('allows global partner export access without a per-fund grant', async () => {
+  it('keeps partner reads global but denies writes without a per-fund grant', async () => {
     authState.role = 'partner';
     authState.fundIds = [];
     seedLockedMetricRun();
@@ -2431,7 +2438,7 @@ describe('metric-run report package routes', () => {
     const assemble = await request(app)
       .post('/api/funds/1/metric-runs/500/report-package')
       .send(reportPackageBody());
-    expect(assemble.status).toBe(201);
+    expect(assemble.status).toBe(403);
 
     const getRes = await request(app).get(
       '/api/funds/1/metric-runs/500/report-package/render-model'
@@ -2441,7 +2448,7 @@ describe('metric-run report package routes', () => {
       .send({});
 
     expect([401, 403]).not.toContain(getRes.status);
-    expect([401, 403]).not.toContain(postRes.status);
+    expect(postRes.status).toBe(403);
   });
 
   it('preserves admin empty-fundIds export access', async () => {
