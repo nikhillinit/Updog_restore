@@ -118,6 +118,9 @@ const EXPORT_ROUTES = [
   ['GET', '/api/funds/1/metric-runs/11/report-package/exports/csv/artifact'],
 ] as const;
 
+const EXPORT_READ_ROUTES = EXPORT_ROUTES.filter(([method]) => method === 'GET');
+const STORED_EXPORT_WRITE_ROUTES = [EXPORT_ROUTES[2], EXPORT_ROUTES[5]] as const;
+
 const CURRENT_H9_GATED_EXPORT_ROUTES = [
   EXPORT_ROUTES[0],
   EXPORT_ROUTES[1],
@@ -742,7 +745,7 @@ describe('LP report export authorization', () => {
     }
   });
 
-  it.each(['viewer', 'analyst', 'partner', 'admin'])(
+  it.each(['partner', 'admin'])(
     'returns 200 for %s with fund grant across all eight export routes',
     async (role) => {
       const authorization = await authorizationHeader(role, [1]);
@@ -751,6 +754,36 @@ describe('LP report export authorization', () => {
         expect(response.status, `${role} ${route.join(' ')}`).toBe(200);
         expect(JSON.stringify(response.body)).not.toMatch(/marginal|non_actionable_shadow/i);
       }
+    }
+  );
+
+  it.each(['viewer', 'analyst'])(
+    'keeps export reads reachable for %s with fund grant',
+    async (role) => {
+      const authorization = await authorizationHeader(role, [1]);
+      for (const route of EXPORT_READ_ROUTES) {
+        const response = await sendRoute(app, route).set('Authorization', authorization);
+        expect(response.status, `${role} ${route.join(' ')}`).toBe(200);
+        expect(JSON.stringify(response.body)).not.toMatch(/marginal|non_actionable_shadow/i);
+      }
+    }
+  );
+
+  it.each(['viewer', 'analyst'])(
+    'denies stored export writes for %s with fund grant before mocked persistence',
+    async (role) => {
+      const authorization = await authorizationHeader(role, [1]);
+      for (const route of STORED_EXPORT_WRITE_ROUTES) {
+        const response = await sendRoute(app, route).set('Authorization', authorization);
+        expect(response.status, `${role} ${route.join(' ')}`).toBe(403);
+        expect(response.body, `${role} ${route.join(' ')}`).toMatchObject({
+          error: 'Forbidden',
+          code: 'WRITE_ROLE_REQUIRED',
+        });
+      }
+      expect(dbState.exportInsertAttempts).toBe(0);
+      expect(dbState.insertedExportRows).toHaveLength(0);
+      expect(dbState.metricRunStatusUpdates).toHaveLength(0);
     }
   );
 
