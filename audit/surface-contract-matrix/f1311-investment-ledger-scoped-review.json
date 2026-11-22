@@ -1,21 +1,21 @@
 {
   "schema_version": "1.0.0",
   "review_id": "f1311-investment-ledger-scoped-review",
-  "snapshot_id": "snapshot:a8b36dd886a8b24d57d9a5ebf53f563e7bc19fdbe4da62914dbac08d5663d1c4",
+  "snapshot_id": "snapshot:efa506c863f9ae964a3c741109421c9587cf2c86af0e4f2229c52ae7a83b4ba6",
   "source_fingerprints": {
     ".dockerignore": "8ec65ea77679b32af3a99b8d7a68d946705e61cb556a6f30a5f2adcbfe16287e",
     ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "60ce5ce06bc3254d8fe1ac2a6b5b5071cae4522605410a53818b2e330579d22f",
-    "audit/surface-contract-matrix/boot-proofs.json": "13588407ca54fe3c7dabff113f423e2a6933d05d4f859667601ca1eecc86ce43",
+    "audit/surface-contract-matrix/boot-proofs.json": "74e0de8709f231852b929e2f25a222220ca3ff62bb54a25af6cb96ecd2d7a33b",
     "audit/surface-contract-matrix/matrix-schema.mjs": "031c440c00db6cf095aeda885d32328ccf534a8abcca33972457d2e896f662ff",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "861ed1888d6a7c2fa65ac7c21c5146af260a6906cb3d4fafb3446c90bda05017",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9b0fbdc28bced02e5a500e573c0a661ca19efae4f8767aba2d40bf2f239c19ba",
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
     "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "6b58a48bbae7775a4b3e208c07eb3efdcb482be3ab5abb2a3e0cdd2347fb7f02",
     "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
-    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "c86a881d617a3e52b795cd024c53c92f4e70d93a962c6a2c8deaab02f2e623d6",
+    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "1c0cd9ead4c1190798baa6eb31066c1c01ce95d693f99d86a2d079476114a549",
     "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "ebe5c909685ce615283262d9bf0b0d2df774a6ef0ede5b24419c9a98c67cab32",
     "client/index.html": "6267a8686b906ba4480f99255fb3b3dbea859c46004737eac7718f95f64c8698",
     "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
@@ -298,6 +298,7 @@
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investment-ledger.ts=63bfcef60589fb7e2b29411b569d02a22a0b27e9f847443560852ae430f14c5c",
@@ -337,6 +338,7 @@
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investment-ledger.ts=63bfcef60589fb7e2b29411b569d02a22a0b27e9f847443560852ae430f14c5c",
@@ -376,6 +378,7 @@
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investment-ledger.ts=63bfcef60589fb7e2b29411b569d02a22a0b27e9f847443560852ae430f14c5c",
@@ -415,6 +418,7 @@
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investment-ledger.ts=63bfcef60589fb7e2b29411b569d02a22a0b27e9f847443560852ae430f14c5c",
@@ -454,6 +458,7 @@
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investment-ledger.ts=63bfcef60589fb7e2b29411b569d02a22a0b27e9f847443560852ae430f14c5c",
@@ -493,6 +498,7 @@
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investment-ledger.ts=63bfcef60589fb7e2b29411b569d02a22a0b27e9f847443560852ae430f14c5c",
@@ -532,6 +538,7 @@
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investment-ledger.ts=63bfcef60589fb7e2b29411b569d02a22a0b27e9f847443560852ae430f14c5c",
@@ -571,6 +578,7 @@
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investment-ledger.ts=63bfcef60589fb7e2b29411b569d02a22a0b27e9f847443560852ae430f14c5c",
@@ -610,6 +618,7 @@
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investment-ledger.ts=63bfcef60589fb7e2b29411b569d02a22a0b27e9f847443560852ae430f14c5c",
@@ -649,6 +658,7 @@
       "source_fingerprints": [
         "server/app.ts=98220caac7b3a7b0e08cb5d7c59e0eeea56df8f55d861d546687eb0b6ebb2211",
         "server/lib/auth/jwt.ts=914f8b46b6e8925785afec3a12f3472cc93f5b799d77c1637e0a632f7a94c4aa",
+        "server/lib/auth/provided-fund-scope.ts=62fd5c03856a277b89ede50b8398df6e022a43a2f0db835146f61e777742aef0",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
         "server/routes/investment-ledger.ts=63bfcef60589fb7e2b29411b569d02a22a0b27e9f847443560852ae430f14c5c",
