@@ -96,6 +96,25 @@ describe('surface contract matrix CI gate', () => {
     );
   });
 
+  it('pins the shared fund-scope guard in every investment-ledger write approval', () => {
+    const guard = 'server/lib/auth/provided-fund-scope.ts';
+    const fingerprint = `${guard}=${sha256(fs.readFileSync(path.join(root, guard)))}`;
+    const matrix = SurfaceMatrixDocumentSchema.parse(readJson('matrix.json'));
+    const inventory = SourceInventorySchema.parse(readJson('source-inventory.json'));
+    const writeRows = matrix.rows.filter(
+      (row) =>
+        row.persistence === 'writes' &&
+        row.source_mapping?.manifest_ids?.includes('investment-ledger')
+    );
+
+    expect(writeRows.length).toBeGreaterThan(0);
+    for (const row of writeRows) {
+      expect(inventory.row_to_sources[row.id], row.id).toContain(guard);
+      expect(inventory.source_to_rows[guard], row.id).toContain(row.id);
+      expect(row.approved_source_hashes, row.id).toContain(fingerprint);
+    }
+  });
+
   it('validates tracked artifacts, discovery sets, hashes, requirements, and render determinism', async () => {
     const matrix = SurfaceMatrixDocumentSchema.parse(readJson('matrix.json'));
     const inventory = SourceInventorySchema.parse(readJson('source-inventory.json'));
