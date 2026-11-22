@@ -105,12 +105,12 @@ async function makeAppWithTestAuth() {
   return makeApp();
 }
 
-async function authorizationHeader(): Promise<string> {
+async function authorizationHeader(role = 'analyst'): Promise<string> {
   const { signToken } = await import('../../../server/lib/auth/jwt');
   return `Bearer ${signToken({
     sub: '9',
     email: 'ledger-route-user@example.com',
-    role: 'user',
+    role,
     fundIds: [7],
   })}`;
 }
@@ -152,6 +152,21 @@ describe('investment-ledger makeApp surface', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('INVALID_IDEMPOTENCY_KEY');
+  }, 30_000);
+
+  it('denies a restricted same-fund credential before service dispatch', async () => {
+    const response = await request(await makeAppWithTestAuth())
+      .post(path)
+      .set('Authorization', await authorizationHeader('user'))
+      .set('Idempotency-Key', 'participation-denied')
+      .send(body);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({
+      error: 'Forbidden',
+      code: 'WRITE_ROLE_REQUIRED',
+    });
+    expect(participationState.create).not.toHaveBeenCalled();
   }, 30_000);
 
   it('returns 201 for create and 200 for exact replay', async () => {

@@ -2127,6 +2127,11 @@ const sourceMappings = ({ rows, commonManifest, runtimeManifest, policyRegistry,
     for (const source of row.source_mapping?.candidate_path ? [row.source_mapping.candidate_path] : []) add(source, rowId);
     for (const source of row.source_mapping?.registration ? [row.source_mapping.registration] : []) add(source, rowId);
     for (const source of authTruthDependenciesForRow(row)) add(source, rowId);
+    // The ledger's shared write middleware calls this guard outside route registrations.
+    if (row.machine_suggestions?.persistence === 'writes'
+      && row.source_mapping?.manifest_ids?.includes('investment-ledger')) {
+      add('server/lib/auth/provided-fund-scope.ts', rowId);
+    }
   }
   for (const entry of commonManifest) {
     const source = manifestSourcePath(entry.sourceModule);
